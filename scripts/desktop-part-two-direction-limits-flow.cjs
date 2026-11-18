@@ -10,6 +10,9 @@ module.exports = function twoDirectionLimitsWorkflow(context) {
   const D2 = 'input[aria-label="Profundidad de dirección 2"]', END = 'select[aria-label="Condición final"]';
   const END2 = 'select[aria-label="Condición final de dirección 2"]';
   const TARGET = 'select[aria-label="Superficie de destino"]', TARGET2 = 'select[aria-label="Superficie de destino de dirección 2"]';
+  const OFFSET = 'select[aria-label="Desplazamiento del límite"]', OFFSET2 = 'select[aria-label="Desplazamiento del límite de dirección 2"]';
+  const NORMAL = 'input[aria-label="Distancia normal"]';
+  const TRANSLATION2 = axis => 'input[aria-label="Traslación ' + axis + ' de dirección 2"]';
   const BODY = 'select[aria-label="Cuerpo límite de la extrusión"]', BODY2 = 'select[aria-label="Cuerpo límite de dirección 2"]';
   const NAME = 'input[aria-label="Nombre de operación"]', THIN = 'input[aria-label="Operación lámina"]';
   const PLANE = 'input[aria-label="Distancia del plano"]';
@@ -342,10 +345,56 @@ module.exports = function twoDirectionLimitsWorkflow(context) {
     await fileCommand('Guardar');
     await waitFor('second independent-limit save completed', async () => ipc.filter(event => event.channel === 'document:save' && event.completed).length === 2
       && await page(() => !document.querySelector('.document-title')?.textContent.includes('*')));
+    const sourceMovedSaved = JSON.parse((await fsp.readFile(output)).toString('utf8'));
+    check(canonical(sourceMovedSaved.features) === canonical(moved.features), 'Second write preserves independent saved targets and the moved source plane');
+
+    // The same original 10 by 6 rectangle now spans world z=-6 to +18.
+    // Lateral translations of an infinite planar limit must not move the profile.
+    const offsetTop = { ...up('top'), offset: { construction: 'normal', signedDistanceMm: 2 } };
+    const offsetBottom = { ...up('alternate'), offset: { construction: 'translation', translationWorldMm: [3, -4, -1] } };
+    const offsetDimensions = { volume: 1440, min: [30, 0, -6], max: [40, 6, 18] };
+    const beforeOffsetsRecovery = await recovery();
+    async function configureOffsets() {
+      await change(OFFSET, 'normal'); await change(NORMAL, 2);
+      await change(OFFSET2, 'translation');
+      await change(TRANSLATION2('X'), 3); await change(TRANSLATION2('Y'), -4); await change(TRANSLATION2('Z'), -1);
+    }
+    await edit(plainOperation.id, TARGET2); serial = (await observe()).serial; await configureOffsets();
+    await built(serial, row => plainDraft(row, offsetTop, offsetBottom), row => plainOwners(row, offsetDimensions), 'independent-normal-and-world-translation-offset-preview', 7);
+    await ready(); await change(NORMAL, '');
+    await waitFor('empty normal offset remains editable and blocks Apply', () => page((normal, apply) => {
+      const field = document.querySelector(normal);
+      return field?.value === '' && field.getAttribute('aria-invalid') === 'true' && document.querySelector(apply)?.disabled === true;
+    }, NORMAL, APPLY));
+    check(await recovery() === beforeOffsetsRecovery, 'Empty offset cannot replace committed recovery');
+    serial = (await observe()).serial; await change(NORMAL, 2);
+    await built(serial, row => plainDraft(row, offsetTop, offsetBottom), row => plainOwners(row, offsetDimensions), 'corrected-offset-draft-returns-to-native-preview', 7);
+    serial = (await observe()).serial; await press(CANCEL);
+    await built(serial, row => canonical(row.features) === canonical(moved.features), allOwners(editedPlain, true), 'cancel-offset-edit-restores-both-saved-ends-and-downstream-cut', 7); await idle();
+    check(await recovery() === beforeOffsetsRecovery, 'Offset Cancel preserves exact committed recovery');
+    await edit(plainOperation.id, TARGET2); serial = (await observe()).serial; await configureOffsets();
+    const offsetPreview = await built(serial, row => plainDraft(row, offsetTop, offsetBottom), row => plainOwners(row, offsetDimensions), 'retry-offset-editor', 7);
+    const offsetFeatures = moved.features.map(item => item.id === plainOperation.id
+      ? { ...item, endCondition: offsetTop, secondDirection: { ...item.secondDirection, endCondition: offsetBottom } } : item);
+    const offsetApplied = await apply(offsetPreview, allOwners(offsetDimensions, true), 'surface-offsets-applied-with-downstream-cut-unchanged', offsetFeatures, 7);
+    serial = (await observe()).serial; await press('button[title="Deshacer (Ctrl+Z)"]');
+    await built(serial, row => canonical(row.features) === canonical(moved.features), allOwners(editedPlain, true), 'undo-surface-offsets', 7); await idle();
+    serial = (await observe()).serial; await press('button[title="Rehacer (Ctrl+Y)"]');
+    await built(serial, row => canonical(row.features) === canonical(offsetApplied.features), allOwners(offsetDimensions, true), 'redo-surface-offsets', 7); await idle();
+    await fileCommand('Guardar');
+    await waitFor('third independent-limit save retains both offsets', async () => ipc.filter(event => event.channel === 'document:save' && event.completed).length === 3
+      && await page(() => !document.querySelector('.document-title')?.textContent.includes('*')));
     const finalBytes = await fsp.readFile(output), finalSaved = JSON.parse(finalBytes.toString('utf8'));
-    check(canonical(finalSaved.features) === canonical(moved.features), 'Second write preserves independent saved targets and the moved source plane');
+    check(canonical(finalSaved.features) === canonical(offsetApplied.features), 'Third write retains offset construction, signed distance and all world coordinates');
     serial = (await observe()).serial; await press('button[aria-label="Abrir (Ctrl+O)"]');
-    await built(serial, row => canonical(row.features) === canonical(finalSaved.features), allOwners(editedPlain, true), 'fresh-reopen-preserves-anchored-two-direction-limits', 7); await idle();
+    await built(serial, row => canonical(row.features) === canonical(finalSaved.features), allOwners(offsetDimensions, true), 'fresh-reopen-preserves-anchored-offset-two-direction-limits', 7); await idle();
+    await edit(plainOperation.id, TARGET2);
+    check(await page((offset, normal, opposite, axes) => document.querySelector(offset)?.value === 'normal' && document.querySelector(normal)?.value === '2'
+      && document.querySelector(opposite)?.value === 'translation'
+      && axes.every(([selector, value]) => document.querySelector(selector)?.value === value), OFFSET, NORMAL, OFFSET2,
+    [['X', '3'], ['Y', '-4'], ['Z', '-1']].map(([axis, value]) => [TRANSLATION2(axis), value])), 'Reopened editor displays both exact saved offset constructions and values');
+    serial = (await observe()).serial; await press(CANCEL);
+    await built(serial, row => canonical(row.features) === canonical(finalSaved.features), allOwners(offsetDimensions, true), 'cancel-reopened-offset-editor-preserves-saved-document', 7); await idle();
     check(digest(await fsp.readFile(input)) === digest(originalBytes), 'Original limit fixture file remains byte-identical');
     check(dialogCounts().opens === 2 && dialogCounts().saves === 1, 'Two bounded Open dialogs and one Save As dialog only');
     const observation = await observe();
@@ -354,7 +403,7 @@ module.exports = function twoDirectionLimitsWorkflow(context) {
     check(protocolResponses.some(asset => /kernel\.worker-[\w-]+\.js$/.test(asset.url) && asset.status === 200)
       && protocolResponses.some(asset => asset.url.endsWith('.wasm') && asset.status === 200), 'Production independent-limit worker and WASM actually loaded');
     evidence.partTwoDirectionLimits.persistence = { inputSha256: digest(originalBytes), initialSha256: digest(savedBytes), finalSha256: digest(finalBytes), dialogs: dialogCounts(),
-      geometricLimits: 'Renderer native volume1e-5mm³/bounds1e-6mm. Step7056, read-only limits288/576; plane boss1140, mixed firstAuto1080/secondAuto1260; body Next/Next1140, All/Next1320, Next/All1500, All/All1680; edited boss1260 and cut6876 retain world bounds after source5->7. No BRep, area, STEP, recipe or platform claim.' };
+      geometricLimits: 'Renderer native volume1e-5mm³/bounds1e-6mm. Step7056, read-only limits288/576; plane boss1140, mixed firstAuto1080/secondAuto1260; body Next/Next1140, All/Next1320, Next/All1500, All/All1680; edited boss1260 and cut6876 retain world bounds after source5->7; authored normal+2 and world translation[3,-4,-1] extend boss to1440 with downstream cut6876 unchanged. No BRep, area, STEP, recipe or platform claim.' };
     evidence.savedSha256 = digest(finalBytes); await capture(finalSaved);
   };
 };

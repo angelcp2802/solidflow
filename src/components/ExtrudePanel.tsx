@@ -11,6 +11,8 @@ import type {
   Plane,
   PlaneSupport,
   ReferencePlaneFeature,
+  SurfaceOffset,
+  Vec3,
 } from "../cad/kernel.types";
 
 const DEFAULT_SECOND_DIRECTION_DEPTH = 10;
@@ -105,12 +107,20 @@ export default function ExtrudePanel({
       : (end?.kind ?? (feature.symmetric ? "mid" : "blind"));
   const explicitBodyLimit = feature.type === 'extrude' && feature.bodyOperation?.mode === 'new';
   const targetControls = (side: ExtrusionSide, sideEnd: ExtrudeEndCondition | undefined) => {
-    const target = sideEnd?.kind === 'upToSurface' ? sideEnd.target : null;
-    if (!target) return null;
+    if (sideEnd?.kind !== 'upToSurface') return null;
+    const target = sideEnd.target;
     const second = side === 'second';
     const targetDisabled = second ? directionControlsDisabled : primaryControlsDisabled;
     const sidePicking = pickingSide === side;
     const label = second ? 'Superficie de destino de dirección 2' : 'Superficie de destino';
+    const suffix = second ? ' de dirección 2' : '';
+    const offset = sideEnd.offset;
+    const offsetHelpId = `extrude-${side}-offset-help`;
+    const changeOffset = (next: SurfaceOffset | undefined) => {
+      if (targetDisabled) return;
+      const { offset: _previous, ...withoutOffset } = sideEnd;
+      onChange(extrusionEndPatch(feature, side, next ? { ...withoutOffset, offset: next } : withoutOffset));
+    };
     const targetValue =
     target?.kind === "principal"
       ? `principal:${target.plane}`
@@ -138,6 +148,53 @@ export default function ExtrudePanel({
       <p className="muted-small">{loading ? 'Preparando la pieza anterior…' : sidePicking
         ? `Selecciona la cara de destino de dirección ${second ? '2' : '1'} en la pieza anterior.`
         : 'Puedes elegir un plano o una cara del historial. Si se pierde la referencia, vuelve a seleccionar el destino.'}</p>
+      <label className="extrude-offset-kind">
+        <span>Desplazamiento del límite{suffix}</span>
+        <select aria-label={`Desplazamiento del límite${suffix}`} value={offset?.construction ?? 'none'} disabled={targetDisabled}
+          aria-describedby={offsetHelpId} onChange={event => {
+            if (targetDisabled || event.target.value === (offset?.construction ?? 'none')) return;
+            if (event.target.value === 'none') changeOffset(undefined);
+            else if (event.target.value === 'normal') changeOffset({ construction: 'normal', signedDistanceMm: 0 });
+            else if (event.target.value === 'translation') changeOffset({ construction: 'translation', translationWorldMm: [0, 0, 0] });
+          }}>
+          <option value="none">Sin desplazamiento</option>
+          <option value="normal">Distancia normal</option>
+          <option value="translation">Traslación X, Y, Z</option>
+        </select>
+      </label>
+      {offset?.construction === 'normal' && <label className="number-field" htmlFor={`extrude-${side}-normal-offset`}>
+        <span>Distancia normal{suffix}</span><div>
+          <input id={`extrude-${side}-normal-offset`} aria-label={`Distancia normal${suffix}`} type="number" step={1}
+            min={-1_000_000} max={1_000_000} value={Number.isFinite(offset.signedDistanceMm) ? offset.signedDistanceMm : ''}
+            disabled={targetDisabled} aria-invalid={!Number.isFinite(offset.signedDistanceMm) || Math.abs(offset.signedDistanceMm) > 1_000_000}
+            aria-describedby={offsetHelpId} onChange={event => {
+              if (!targetDisabled) changeOffset({ construction: 'normal', signedDistanceMm: event.target.value === '' ? Number.NaN : Number(event.target.value) });
+            }} />
+          <small>mm</small>
+        </div>
+      </label>}
+      {offset?.construction === 'translation' && (['X', 'Y', 'Z'] as const).map((axis, index) => {
+        const value = offset.translationWorldMm[index];
+        return <label key={axis} className="number-field" htmlFor={`extrude-${side}-offset-${axis}`}>
+          <span>Traslación {axis}{suffix}</span><div>
+            <input id={`extrude-${side}-offset-${axis}`} aria-label={`Traslación ${axis}${suffix}`} type="number" step={1}
+              min={-1_000_000} max={1_000_000} value={Number.isFinite(value) ? value : ''} disabled={targetDisabled}
+              aria-invalid={!Number.isFinite(value) || Math.abs(value) > 1_000_000} aria-describedby={offsetHelpId}
+              onChange={event => {
+                if (targetDisabled) return;
+                const vector = [...offset.translationWorldMm] as Vec3;
+                vector[index] = event.target.value === '' ? Number.NaN : Number(event.target.value);
+                changeOffset({ construction: 'translation', translationWorldMm: vector });
+              }} />
+            <small>mm</small>
+          </div>
+        </label>;
+      })}
+      <p id={offsetHelpId} className="muted-small">{offset?.construction === 'normal'
+        ? 'Solo planos y caras planas. El signo sigue la normal de la superficie, no el sentido de extrusión. Al cambiar el tipo se reinician sus valores.'
+        : offset?.construction === 'translation'
+          ? 'X, Y y Z usan los ejes del documento. Al cambiar el tipo de desplazamiento se reinician sus valores.'
+          : 'Termina en la superficie elegida. Puedes añadir una distancia normal o una traslación en los ejes del documento.'}</p>
     </div>;
   };
   const changeMode = (value: string) => {

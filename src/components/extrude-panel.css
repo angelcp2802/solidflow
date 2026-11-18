@@ -4,3 +4,4 @@
 /* Retain the focused numeric node while an inactive invalid draft becomes valid. */
 .extrude-inactive-second-depth:not(:focus-within), .extrude-inactive-primary-depth:not(:focus-within) { display: none; }
 .extrude-direction-error { margin: 6px 0 0; color: #9c442f; font-size: 11px; line-height: 1.5; }
+.extrude-offset-kind { display: grid; gap: 5px; margin-top: 10px; color: #536c7d; font-size: 11px; }

@@ -1,4 +1,4 @@
-import { validateSurfaceOffset } from '../cad/extrusionEndCondition'
+import { readSurfaceOffsetDraft, validateSurfaceOffset } from '../cad/extrusionEndCondition'
 import { resolveExtrusionDirections, type SecondDirection } from '../cad/extrusionDirection'
 import type { ExtrudeEndCondition, ExtrudeFeature } from '../cad/kernel.types'
 import { captureOwnDataRecord } from '../model/ownDataRecord'
@@ -32,7 +32,7 @@ function endConditionDraft(value: unknown): ExtrudeEndCondition {
     else if (target.get('kind') === 'face') detached = { ...record(end.target, ['kind', 'face']), face: record(target.get('face'), ['sourceFeatureId', 'key']) }
     else throw Error('Superficie de destino desconocida.')
     return { kind, target: detached as Extract<ExtrudeEndCondition, { kind: 'upToSurface' }>['target'],
-      ...(fields.has('offset') ? { offset: validateSurfaceOffset(fields.get('offset'), 'Desplazamiento') } : {}) }
+      ...(fields.has('offset') ? { offset: readSurfaceOffsetDraft(fields.get('offset'), 'Desplazamiento') } : {}) }
   }
   if (kind !== 'throughAll' && kind !== 'untilNext') throw Error('Condición final desconocida.')
   const allowed = kind === 'throughAll' ? ['kind', 'baseFeatureId', 'bothDirections', 'baseBody'] : ['kind', 'baseFeatureId', 'baseBody']
@@ -73,7 +73,11 @@ export function mergeExtrusionDraft<T extends ExtrudeFeature>(feature: T, patch:
 }
 
 export function extrusionDirectionInputError(feature: Pick<ExtrudeFeature, 'depth' | 'symmetric' | 'endCondition' | 'secondDirection'>): string | null {
-  try { resolveExtrusionDirections(feature) }
+  try {
+    const end = feature.endCondition
+    if (end?.kind === 'upToSurface' && Object.hasOwn(end, 'offset')) validateSurfaceOffset(end.offset, 'Desplazamiento de dirección 1')
+    resolveExtrusionDirections(feature)
+  }
   catch (error) { return error instanceof Error ? error.message : 'La extensión de extrusión no es válida.' }
   return null
 }

@@ -30,11 +30,11 @@ function target(value: unknown, label: string): PlaneSupport {
   throw Error(`${label}: soporte no válido.`);
 }
 
-/** Offsets use document millimetres. Read only declared own data on both branches. */
-export function validateSurfaceOffset(value: unknown, label: string): SurfaceOffset {
+/** Shared own-data capture; only editor drafts may retain invalid numeric input. */
+function surfaceOffset(value: unknown, label: string, draft: boolean): SurfaceOffset {
   const fields = captureOwnDataRecord(value, ['construction', 'signedDistanceMm', 'translationWorldMm'], ['construction'], label);
   const scalar = (raw: unknown): number => {
-    if (typeof raw !== 'number' || !Number.isFinite(raw) || Math.abs(raw) > 1_000_000) throw Error(label + ': desplazamiento fuera de rango.');
+    if (typeof raw !== 'number' || !draft && (!Number.isFinite(raw) || Math.abs(raw) > 1_000_000)) throw Error(label + ': desplazamiento fuera de rango.');
     return raw;
   };
   if (fields.size === 2 && fields.get('construction') === 'normal' && fields.has('signedDistanceMm')) {
@@ -52,6 +52,16 @@ export function validateSurfaceOffset(value: unknown, label: string): SurfaceOff
     }
   }
   throw Error(label + ': construcción de desplazamiento no válida.');
+}
+
+/** Saved documents and kernel inputs require finite, bounded millimetres. */
+export function validateSurfaceOffset(value: unknown, label: string): SurfaceOffset {
+  return surfaceOffset(value, label, false);
+}
+
+/** Empty numeric controls stay editable; strict admission still blocks preview/save. */
+export function readSurfaceOffsetDraft(value: unknown, label: string): SurfaceOffset {
+  return surfaceOffset(value, label, true);
 }
 
 /** Strict detached end data, including retained inactive references. No native resolution. */

@@ -125,8 +125,10 @@ Both extrusion directions retain the declaration. The world-principal recipe
 applies the offset to its own limit before native termination. A valid
 parent-route field alone does not attest the route's native existence.
 Ordinary extrusions can also translate an exact trimmed curved face. Normal
-offsets of curved faces, other recipe placements and interactive offset
-authoring remain open. See the [saved contract](../src/cad/extrude-end-conditions.md).
+offsets of curved faces and other recipe placements remain open. The ordinary
+extrusion editor offers independent normal/translation controls on each surface
+end; clearing an offset restores the absent legacy field. This does not add
+interactive recipe reference placements. See the [saved contract](../src/cad/extrude-end-conditions.md).
 
 The current evaluator handles canonical linear/circular/mirror placements,
 ordered intrinsic operations, exact historical sources, current targets and
