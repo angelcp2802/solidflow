@@ -1,5 +1,74 @@
 # Validation
 
+## Packaged 0.35.0 material references and recovered assembly — Windows, 2026-11-18
+
+Frozen source `96f2336dfab7247720c7b6b92119f284fd896cf5`, draft head
+`83f80483516ee69cddf91912f5d230c511c3b7a4` and hosted merge
+`53ab5c43f59b1e5d624ea5852fb380bbc5f785e6` share tree
+`098c5a8ae3a091328a32b778846219b0aa0e6ec5`. All 124 local Windows commands
+passed without retries, including build, 11,528 unit/CAD cases in 524 files,
+252 IPC passes with two skips and the real production-loader/WASM/worker-queue
+smoke. The terminal audit rehashed all 124 logs, 1,597 source/runtime inputs,
+sixteen selected dependency members and nine production products. This is
+local Windows evidence, separate from the hosted result below.
+
+Independent physical inspection and REA matched all 5,273 archived files and
+102 directories. The executable SHA-256 is
+`1521d17a572c21fb3a74e2531cad2e8f519ae83b2cdb6bf91261646a37e75215`;
+the ASAR SHA-256 is
+`ea8d4c30fc8f4d7b3c45c7b748c8441d26e590ba5b25922df4e8b1c770043786`.
+The unsigned Windows x64 directory package retains the single-thread runtime
+and notices. Three unused raw multi-thread files remain excluded. Archive
+inspection establishes the bytes, not the native interactions that follow.
+
+The native window opened the original three-prism example through the normal
+file dialog. Its expanded face selector visibly distinguished all eighteen
+options by owner, current-catalog number, local point and normal. Base face 6
+and Guía face 12 both showed local point (0,0,4) and normal (0,0,1). An aligned
+signed distance of 0 mm passed preview, Cancel/retry and Apply. Editing the
+existing parallel relation replaced its first reference with Seguidor LINE
+edge 25 and its second with Base LINE edge 1; both displayed local point
+(0,0,0) and direction (0,0,1). The expanded native LINE list and native
+first-letter selection were exercised; all thirty-six options were checked
+programmatically, not all visually. Preview/Apply, Undo/Redo, native Save As,
+STL export, explicit Open and a fresh verified Solve/Cancel passed.
+
+Independent saved-graph checks retained the source revision, occurrence IDs,
+old relation IDs and exact saved poses. Arithmetic expectations use three
+original 3×2×4 mm prisms, each with V24 mm³ and A52 mm². The exported STL has
+36 triangles and three closed consistently wound shells at V72 mm³ and
+A156 mm², with bounds [0,0,0] to [19,2,4] mm. Every triangle lies on an
+analytical prism face. Checks use 10⁻⁶ mm length, 10⁻⁵ mm³ volume and
+10⁻⁵ mm² area tolerances. Guía's original X placement differs from 10 mm by
+approximately 4×10⁻⁷ mm; its float32 STL coordinates stay within that length
+tolerance. Edge keys are insensitive to traversal direction: the observed
+native labels supply the +Z selection evidence, independently of the saved
+vertical support and aligned relation.
+
+The initially empty, unseeded demo profile opened the original mixed assembly,
+verified Solve/Cancel, saved a new copy and closed. The new exact desktop
+shortcut started a new process, which automatically recovered three solids,
+two definitions and 2,208 mm³. Native Save As after recovery reproduced the
+original document bytes, retaining five mates. No new mixed-assembly STL was
+exported in this session; byte identity ties this recovery to the earlier
+independent mixed-model geometry. All 28 original guide models remain
+unchanged. These are bounded Windows directory-package cases, not installed
+or other-platform native acceptance.
+
+The first [0.35 CI](https://github.com/angelcp2802/solidflow/actions/runs/44207676836)
+finished with eleven renderer/authoring passes and a Windows persistence
+failure at an immediate `JSON.parse` after selecting a configured origin.
+The three Desktop jobs stopped at their required renderer prerequisite and
+did not execute install/build/tests. The local baseline passed. A bounded
+selection-publication wait is under separate validation; no hosted retry or
+pass is inferred. [Security](https://github.com/angelcp2802/solidflow/actions/runs/44207676801)
+completed with CodeQL success and the known picomatch dependency-audit
+failure. No exclusion or policy weakening was applied. The native summary
+also exposed the English `underdefined` state token; its presentation
+correction is separate from the verified geometry. Installed acceptance,
+recurring hosted stability, human use, all nine broader groups and public
+source-delivery gate #5 retain their own requirements.
+
 ## Distinct material choices and smoke close preservation — Windows, 2026-11-18
 
 The original three-prism catalogs at `6a65894` contained eighteen face values
@@ -22,10 +91,11 @@ preservation of the primary error when cleanup also fails. They do not launch
 Electron. The real smoke retained its sandbox, readiness checks and temporary
 path guard; its compiled products and selected dependencies matched `6a65894`.
 
-These are exact local Windows source results. The aggregate 0.35.0 inventory,
-packaged native labels, nested/configured material dropdowns, installed use and
-other platforms require their own results. The earlier macOS unit SIGBUS is
-not established as resolved by the smoke launcher change.
+These are exact local Windows source results. The aggregate 0.35.0 inventory
+and bounded ordinary packaged labels have their separate record above.
+Nested/configured material dropdowns, installed use and other platforms require
+their own results. The earlier macOS unit SIGBUS is not established as resolved
+by the smoke launcher change.
 
 ## Packaged 0.34.0 origin menus and recovered assembly — Windows, 2026-11-18
 

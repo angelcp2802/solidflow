@@ -73,7 +73,7 @@ checked items out of 25. Each of its nine open groups keeps its own evidence.
 
 | Existing open group | Recorded bounded cases | Remaining gate work |
 | --- | --- | --- |
-| Complete demo and human use | The 0.32.0 Windows directory package repeated the combined part and two-occurrence assembly walkthrough. The 0.34.0 shortcut recovered the three-solid assembly with identical saved bytes and its guide includes 28 original examples. Prior native C11 and C15 evidence remains linked above. | Record human use and installed-platform acceptance separately. |
+| Complete demo and human use | The 0.32.0 Windows directory package repeated the combined part and two-occurrence assembly walkthrough. The exact 0.35.0 package verified ordinary face/LINE replacement, saved graph and independent STL, then recovered the mixed assembly with identical saved bytes through its new shortcut. Its guide retains 28 original examples. Prior native C11 and C15 evidence remains linked above. | Record human use and installed-platform acceptance separately. |
 | Remaining view-editor behaviour | Presets, Normal To, named views, Previous and bounded native selector and gesture cases in three workspaces. The standard and configured compact renderer routes exercise direct view buttons at 1024×681 content size. | C13/N02–N06 retains the remaining selector, compact and context entries. |
 | Broader keyboard interaction | Document/camera shortcuts, field ownership, Help focus, modal Escape and menu traversal have bounded cases. Local follow-up covers the part File menu and configured discard dialog in both layouts. A standard compact viewport case verifies the single selected origin menu and a genuine mixed-selection control. | C13/N07/N08 and P-X01 retain their named field, tree, viewport, repeat and composition cases. |
 | Recurring persistence and installed/platform use | Versioned documents, interchange, close and recovery have local routes. Exact 0.31.0 hosted CI passed all twelve renderer and authoring jobs and three Desktop jobs. | C16 and C17 retain the exact-head results still to be verified. C18 records the local executable and combined walkthrough. Recurring hosted stability, cost and installed acceptance remain in [desktop tracking](https://github.com/angelcp2802/solidflow/issues/53). |
@@ -108,19 +108,30 @@ tolerances and deadlines.
 
 ## Current resumption point
 
-The exact 0.34.0 Windows x64 directory package at source `c78c470` passed
-nineteen selected affected commands, including build, 11,528 unit/CAD cases,
-232 IPC checks with two skips, production-loader smoke, ordinary/configured
-origin menus, embedded properties and successive operations. The independent
-physical audit and REA matched all 5,273 regular files. The native configured
-plane menu selected the exact `right / anchor` owner. The demo shortcut
-recovered three solids at 2,208 mm³ after close and restart, and native Save As
-reproduced the original document bytes. Independent STL inspection found three
-closed shells, 2,208 mm³ and 1,944 mm². The guide includes 28 original models.
-The Windows directory package is unsigned. The complete 124-command inventory
-passed separately on the exact 0.33.0 tree after a verified continuation; it
-does not stand for a complete 0.34.0 inventory. Installed acceptance remains
-open. [0.34.0 package and native record](VALIDATION.md#packaged-0340-origin-menus-and-recovered-assembly--windows-2026-11-18)
+The exact 0.35.0 Windows x64 source `96f2336` passed all 124 local commands,
+including build, 11,528 unit/CAD cases, 252 IPC passes with two skips and real
+production-loader/WASM/queue startup. Its terminal audit rehashed all command
+logs, 1,597 source/runtime inputs, sixteen dependency members and nine products.
+Physical inspection and REA matched all 5,273 archived files and 102 directories.
+The exact unsigned package verified a signed distance between original top
+faces and ordered LINE replacements of an existing parallel relation through
+preview/Cancel/retry/Apply, history, native Save/Open and fresh Solve/Cancel.
+Independent graph and STL checks retained identities and exact saved poses,
+with three closed shells at V72 mm³ and A156 mm². The new desktop shortcut
+recovered the mixed assembly at 2,208 mm³ in its initially empty, unseeded
+profile; native Save As reproduced the original document bytes. The guide
+retains 28 original models.
+[0.35.0 package and native record](VALIDATION.md#packaged-0350-material-references-and-recovered-assembly--windows-2026-11-18)
+
+The first exact 0.35 hosted run passed eleven renderer/authoring jobs but
+failed Windows persistence at a configured-origin driver's immediate JSON
+parse after selection. The three Desktop jobs stopped at their renderer
+prerequisite without executing install/build/tests. A bounded publication-wait
+correction is under separate validation; the local baseline passed, and no
+hosted retry or success is claimed. A native English solver-state label also
+has a separate presentation correction. Recurring exact-head stability,
+installed/platform and human acceptance, the dependency audit and source
+delivery remain open. All nine broader groups retain their recorded scope.
 
 The exact 0.32.0 native package repeated the four-operation sequence from a
 960 mm³ original and related two occurrences of the result. The second
@@ -151,10 +162,14 @@ The targeted retry ended during service startup and GitHub then rejected
 further retries. Exact 0.33.0 hosted execution passed nine renderer/authoring
 jobs. Three macOS renderer jobs were cancelled before their first step because
 GitHub did not acquire runners; the three Desktop jobs stopped at the renderer
-prerequisite. The 0.34.0 draft has its own
-[CI](https://github.com/angelcp2802/solidflow/actions/runs/44198905481) and
-[Security](https://github.com/angelcp2802/solidflow/actions/runs/44198905534) runs.
-Live exact-head outcomes remain in [#53](https://github.com/angelcp2802/solidflow/issues/53).
+prerequisite. All fifteen exact 0.34.0
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/44198905481) jobs passed
+on their first attempt, including startup, packaging and packaged-member
+verification on Windows x64, Linux x64 and macOS arm64. These are their executed
+cases, not installed or broad native-platform acceptance. Its
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/44198905534)
+CodeQL check passed and dependency audit failed. Exact-head outcomes remain
+in [#53](https://github.com/angelcp2802/solidflow/issues/53).
 The 17 November dependency audit reports GHSA-fc5q-39xc-vjpf in picomatch
 4.0.7, used by development tools. A fixed compatible release is pending.
 The high-severity audit gate stays open. Keep complete command inventories,
