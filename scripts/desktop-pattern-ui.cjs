@@ -142,6 +142,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-assembly-structural-step-insertion', caption: 'structural STEP component insertion' }),
   'world-limit': Object.freeze({ fixture: 'pattern-world-limit-original.json', entry: 'desktop-pattern-world-limit.cjs', worldLimit: 'first',
     test: 'production-renderer-fixed-world-limit', caption: 'fixed world-limit' }),
+  'world-face-limit': Object.freeze({ fixture: 'pattern-world-face-limit-original.json', entry: 'desktop-pattern-world-face-limit.cjs', worldLimit: 'face',
+    test: 'production-renderer-historical-world-face', caption: 'historical world face' }),
   'world-limit-second': Object.freeze({ entry: 'desktop-pattern-world-limit-second.cjs', worldLimit: 'second',
     test: 'production-renderer-fixed-world-limit-second', caption: 'fixed world-limit on direction 2' }),
   'until-next': Object.freeze({ fixture: 'pattern-until-next-cut-original.json', entry: 'desktop-pattern-until-next.cjs',
@@ -752,7 +754,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
     const method = document.querySelector('select[aria-label="Método de repetición de operaciones"]');
     const worldLimit = document.querySelector('input[aria-label^="Mantener plano límite fijo de "]');
     const sample = { scope: scope?.value ?? null, applyDisabled: apply ? apply.disabled : null,
-      method: method?.value ?? null, worldLimitChecked: worldLimit ? worldLimit.checked : null }, key = JSON.stringify(sample);
+      method: method?.value ?? null, faceOwner: document.querySelector('select[aria-label^="Cuerpo de la cara límite de "]')?.value ?? null, worldLimitChecked: worldLimit ? worldLimit.checked : null }, key = JSON.stringify(sample);
     if (key !== previousUi && observations.ui.length < 512) {
       previousUi = key; observations.ui.push({ eventSerial: ++observations.eventSerial, ...sample });
     }
@@ -2129,7 +2131,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : activeScenario.worldLimit
-    ? require('./desktop-pattern-world-limit-flow.cjs')({ second: activeScenario.worldLimit === 'second',
+    ? require('./desktop-pattern-world-limit-flow.cjs')({ face: activeScenario.worldLimit === 'face', second: activeScenario.worldLimit === 'second',
       expected, expectedIds, evaluate, observe, waitFor, click, pointer, menu, checks,
       protocolResponses, consoleErrors, failedRequests, ipc, input, output, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) }) : workflow;

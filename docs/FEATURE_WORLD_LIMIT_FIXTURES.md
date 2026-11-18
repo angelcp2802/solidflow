@@ -141,3 +141,17 @@ not independently checked. It is not a complete workflow-command pass or cleanup
 proof. The earlier successful invocation above remains tied to its
 listed launcher bytes; neither result replaces the other. The separate checkpoint
 and full-suite failure are recorded in [VALIDATION.md](VALIDATION.md).
+
+### Historical face with coincident owners
+
+`node scripts/desktop-pattern-world-face-limit.cjs` opens the original project-owned
+`pattern-world-face-limit-original.json` fixture. It extends the two-box linear
+example above with two coincident boxes from (10, −2, −3) to (12, 2, 1) mm.
+A single cut makes a 1 mm recess of radius 0.25 mm in both. The saved reference
+was captured from the top planar face of `face-limit` after this shared cut.
+Both limit bodies have volume 32 − π/16 mm³. A geometrical copy cuts 7 mm
+from the target. Recalculation against the historical plane z = 1 cuts 3 mm.
+The worker must preserve each owner's exact ID, volume and bounds when the
+editor rejects the coincident decoy, cancels a valid preview, commits, undoes,
+redoes, saves and reopens. Volume tolerance is 10⁻⁵ mm³ and bounds tolerance
+is 10⁻⁶ mm per coordinate. All dimensions and geometry originate in this project.

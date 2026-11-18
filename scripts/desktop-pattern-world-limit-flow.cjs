@@ -5,17 +5,18 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Trusted tracked workflow factory. It receives only the shared observer/DOM
 // helpers and test-owned paths; it never supplies worker or application state.
 module.exports = function worldLimitWorkflow(context) {
-  const { second, expected, expectedIds, evaluate, observe, waitFor, click, pointer, menu, checks,
+  const { face, second, expected, expectedIds, evaluate, observe, waitFor, click, pointer, menu, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, input, output,
     check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const PATTERN_ID = 'ui-world-P', SEED_ID = 'seed-limit';
   const METHOD = 'select[aria-label="Método de repetición de operaciones"]';
   const firstLabel = 'Mantener plano límite fijo de Original fixed-plane seed';
-  const LIMIT = 'input[aria-label="' + (second ? 'Mantener plano límite fijo de dirección 2 de Original fixed-plane seed' : firstLabel) + '"]';
+  const LIMIT = face ? 'select[aria-label="Cuerpo de la cara límite de Original fixed-plane seed · dirección 1"]' : 'input[aria-label="' + (second ? 'Mantener plano límite fijo de dirección 2 de Original fixed-plane seed' : firstLabel) + '"]';
   const FIRST_LIMIT = 'input[aria-label="' + firstLabel + '"]';
   const APPLY = 'button[title="Aceptar operación"]';
-  const expectedPolicy = { featureId: SEED_ID, path: second ? 'secondDirection.endCondition.target' : 'endCondition.target', placement: 'world' };
-  const originalCutLength = second ? 7 : 6, regeneratedCutLength = second ? 3 : 2;
+  const expectedPolicy = { featureId: SEED_ID, path: second ? 'secondDirection.endCondition.target' : 'endCondition.target', placement: 'world',
+    ...(face && { owner: { bodyId: 'face-limit', sourceFeatureId: 'shared-cut' } }) };
+  const originalCutLength = second || face ? 7 : 6, regeneratedCutLength = second || face ? 3 : 2;
   const volumeAfterCut = length => 64 - length * Math.PI / 4;
   function assertOrigin(document) {
     check(document.version === 1 && document.id === 'ui-world-original-document' && document.id === expected.id
@@ -34,12 +35,16 @@ module.exports = function worldLimitWorkflow(context) {
   }
   function assertBodies(record, phase) {
     const bodies = record.response.value.bodies, actual = new Map(bodies.map(body => [body.ref.bodyId, body]));
-    check(bodies.length === 2 && actual.size === 2, 'Expected exactly two distinct original world-limit owners.');
+    const count = face ? 4 : 2;
+    check(bodies.length === count && actual.size === count, 'Unexpected number of distinct world-limit fixture owners.');
     const desired = {
       S: [SEED_ID, 'create-S', volumeAfterCut(originalCutLength), [-1, -1, -8], [1, 1, 8]],
-      A: [phase === 'missing-policy' ? 'create-A' : PATTERN_ID, 'create-A', phase === 'missing-policy' ? 64
+      A: [['missing-policy', 'wrong-owner'].includes(phase) ? 'create-A' : PATTERN_ID, 'create-A', ['missing-policy', 'wrong-owner'].includes(phase) ? 64
         : volumeAfterCut(phase === 'geometry' ? originalCutLength : regeneratedCutLength), [2, -1, -8], [4, 1, 8]],
     };
+    if (face) for (const [id, creator] of [['face-limit', 'limit-create'], ['face-decoy', 'decoy-create']]) {
+      desired[id] = ['shared-cut', creator, 32 - Math.PI / 16, [10, -2, -3], [12, 2, 1]];
+    }
     for (const [id, [source, creator, volume, min, max]] of Object.entries(desired)) {
       const body = actual.get(id);
       check(body?.ref.sourceFeatureId === source && body.createdByFeatureId === creator, 'Unexpected exact fixed-plane ref/creator for ' + id);
@@ -66,13 +71,15 @@ module.exports = function worldLimitWorkflow(context) {
         check(errors.length === 1 && errors[0].id === PATTERN_ID
           && errors[0].message.startsWith(SEED_ID + ':' + expectedPolicy.path + ': ')
           && errors[0].message.includes('saved remap policy'), 'Expected the real worker missing-reference-policy error for this exact direction.');
+      } else if (phase === 'wrong-owner') {
+        check(errors.length === 1 && errors[0].id === PATTERN_ID && errors[0].message.includes('no es una ocurrencia única'), 'Expected real native owner mismatch');
       } else check(errors.length === 0, 'Fixed-plane worker returned unexpected feature errors.');
       assertBodies(record, phase); return record;
     });
   }
   function assertPendingUi(before, response, limitChecked) {
     const samples = response.ui.filter(sample => sample.eventSerial > before.eventSerial
-      && sample.eventSerial < response.responseEventSerial && sample.method === 'regenerate' && sample.worldLimitChecked === limitChecked);
+      && sample.eventSerial < response.responseEventSerial && sample.method === 'regenerate' && (face ? sample.faceOwner === limitChecked : sample.worldLimitChecked === limitChecked));
     check(samples.some(sample => sample.applyDisabled === true) && samples.every(sample => sample.applyDisabled === true),
       'Apply did not stay disabled before the actual fixed-plane worker response.');
   }
@@ -92,13 +99,40 @@ module.exports = function worldLimitWorkflow(context) {
     await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
     return point;
   }
+  async function previewHistoricalOwner(missing) {
+    const field = encodeJavaScriptString(LIMIT), apply = encodeJavaScriptString(APPLY);
+    const disabled = () => evaluate('document.querySelector('+apply+')?.disabled');
+    const banner = () => evaluate("document.querySelector('.error-banner[role=alert] span')?.textContent");
+    await waitFor('missing historical owner guidance', async () => await disabled() && (await banner())?.includes('selecciona el cuerpo histórico'));
+    let preview;
+    for (const [id, phase] of [['face-decoy', 'wrong-owner'], ['face-limit', 'world']]) {
+      const before = await observe(), value = JSON.stringify([id,'shared-cut']);
+      await evaluate(`(() => { const select = document.querySelector(${field});
+        const option = [...select.options].find(item => item.value === ${encodeJavaScriptString(value)});
+        if (select.disabled || !option || option.disabled) throw Error('Missing selectable historical owner');
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, option.value);
+        select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      const result = await buildAfter(before.serial, phase);
+      check(result.features.at(-1).featurePattern.referencePolicies[0].owner.bodyId === id, 'Worker consumed the selected exact owner');
+      assertPendingUi(before, { ...result, ui: (await observe()).ui }, value);
+      if (phase === 'wrong-owner') {
+        await waitFor('wrong historical owner blocks Apply', async () => await disabled() && (await banner())?.includes('no es una ocurrencia única'));
+      } else {
+        assertDeclaration({ ...expected, features: result.features }, true);
+        await waitFor('verified native owner enables Apply', async () => await disabled() === false);
+        preview = result;
+      }
+    }
+    return { missing, preview, pointerPoint: null };
+  }
   async function previewWorld() {
     await evaluate(`(() => { const rows=[...document.querySelectorAll('.tree-row')].filter(row=>[...row.querySelectorAll('span')].some(span=>span.textContent==='UI world-limit pattern original')); if(rows.length!==1) throw Error('Original fixed-plane row missing/ambiguous'); rows[0].dispatchEvent(new MouseEvent('dblclick',{bubbles:true})); })()`);
     await waitFor('geometry editor keeps exact selected A', () => evaluate(`(() => {const method=document.querySelector(${encodeJavaScriptString(METHOD)});const a=document.querySelector('input[aria-label="Aplicar repetición a Original A"]');return method?.value==='geometry'&&!method.disabled&&a?.checked&&!document.querySelector(${encodeJavaScriptString(LIMIT)});})()`));
     const beforeMethod = await observe();
     await evaluate(`(() => {const select=document.querySelector(${encodeJavaScriptString(METHOD)});if(!select||select.disabled||select.value!=='geometry') throw Error('Geometry method is not editable');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'regenerate');select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
     const missing = await buildAfter(beforeMethod.serial, 'missing-policy');
-    const afterMissing = await observe(); assertPendingUi(beforeMethod, { ...missing, ui: afterMissing.ui }, false);
+    const afterMissing = await observe(); assertPendingUi(beforeMethod, { ...missing, ui: afterMissing.ui }, face ? '' : false);
+    if (face) return previewHistoricalOwner(missing);
     await waitFor('missing policy blocks Apply and offers an explicit unchecked limit', () => evaluate(`(() => {const method=document.querySelector(${encodeJavaScriptString(METHOD)});const limit=document.querySelector(${encodeJavaScriptString(LIMIT)});const apply=document.querySelector(${encodeJavaScriptString(APPLY)});return method?.value==='regenerate'&&!!limit&&!limit.disabled&&!limit.checked&&!!apply&&apply.disabled;})()`));
     if (second) check(await evaluate(`!document.querySelector(${encodeJavaScriptString(FIRST_LIMIT)})`), 'Direction 1 is Blind and offers no fixed-plane policy');
     const option = second ? 'Mantener el plano límite de dirección 2 de Original fixed-plane seed'
@@ -139,17 +173,17 @@ module.exports = function worldLimitWorkflow(context) {
       return value;
     });
     let staged = await previewWorld(), cancelled = null;
-    if (second) {
-      check(await recovery() === geometryRecovery, 'Direction 2 verified preview leaves the committed geometry recipe intact');
+    if (second || face) {
+      check(await recovery() === geometryRecovery, 'Verified preview leaves the committed geometry recipe intact');
       const beforeCancel = await observe();
       await click('button[title="Cancelar operación"]');
-      await waitFor('Cancel closes the Direction 2 property manager', () => evaluate("!document.querySelector('.property-manager')"));
+      await waitFor('Cancel closes the active property manager', () => evaluate("!document.querySelector('.property-manager')"));
       const restored = await buildAfter(beforeCancel.serial, 'geometry');
       assertDeclaration({ ...expected, features: restored.features }, false);
       check(await recovery() === geometryRecovery, 'Cancel restores exact geometry recipe recovery');
       cancelled = { restoredSerial: restored.serial, pointerPoint: staged.pointerPoint };
       staged = await previewWorld();
-      check(await recovery() === geometryRecovery, 'Retry does not publish the fixed Direction 2 policy before Apply');
+      check(await recovery() === geometryRecovery, 'Retry does not publish the fixed policy before Apply');
     }
     const { preview, missing, pointerPoint } = staged;
     serial = (await observe()).serial;
@@ -161,6 +195,16 @@ module.exports = function worldLimitWorkflow(context) {
       const document = JSON.parse(value); if (document.id !== expected.id || document.features.at(-1)?.featurePattern?.referencePolicies?.length !== 1) return false;
       assertDeclaration(document, true); return true;
     });
+    const history = [];
+    if (face) {
+      for (const [title, phase] of [['Deshacer (Ctrl+Z)', 'geometry'], ['Rehacer (Ctrl+Y)', 'world']]) {
+        serial = (await observe()).serial;
+        await click('button[title="' + title + '"]');
+        const state = await buildAfter(serial, phase);
+        assertDeclaration({ ...expected, features: state.features }, phase === 'world');
+        history.push({ phase, serial: state.serial, featuresSha256: digest(canonical(state.features)) });
+      }
+    }
     await menu('Guardar como…');
     await waitFor('real preload/IPC save completes', () => dialogCounts().saves === 1 && ipc.some(event => event.channel === 'document:save' && event.completed));
     await waitFor('renderer records the completed save', () => evaluate(`(() => {const title=document.querySelector('.document-title')?.textContent||'';return title.includes('Original isolated world-limit interaction')&&!title.includes('*');})()`));
@@ -176,7 +220,7 @@ module.exports = function worldLimitWorkflow(context) {
     check((await fsp.readFile(input)).equals(originalBytes), 'Original input bytes are unchanged after Save As and reopen');
     checks.push({ independentBodyOracles: { seedAndCopiedCutLengthMm: originalCutLength, regeneratedCutLengthMm: regeneratedCutLength,
         formula: '64 - pi*L/4 mm³ per body', boundsToleranceMm: 1e-6, volumeToleranceMm3: 1e-5 },
-      direction: second ? 'second' : 'first', ...(second && { pointerPoint, cancelled }),
+      direction: second ? 'second' : 'first', ...(face && { historicalOwner: expectedPolicy.owner, history }), ...((second || face) && { pointerPoint, cancelled }),
       originalFixtureSha256: digest(originalBytes),
       workerBuilds: [['geometry', geometry], ['preview-world', preview], ['committed-world', committed], ['reopened-world', reopened]].map(([phase, record]) => ({
         phase, requestId: record.id, serial: record.serial, featuresSha256: digest(canonical(record.features)), bodies: record.response.value.bodies })),
