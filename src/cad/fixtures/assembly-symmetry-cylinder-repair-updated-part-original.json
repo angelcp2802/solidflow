@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "symmetry-cylinder-repair-entity",
+  "name": "Original cylinder repair updated",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "features": [
+    {
+      "id": "profile",
+      "type": "sketch",
+      "name": "Original analytic profile",
+      "plane": "XY",
+      "offset": 0,
+      "suppressed": false,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          1,
+          0
+        ],
+        "radius": 3
+      }
+    },
+    {
+      "id": "solid",
+      "type": "extrude",
+      "name": "Original H4 solid",
+      "sketchId": "profile",
+      "depth": 6,
+      "symmetric": false,
+      "suppressed": false,
+      "bodyOperation": {
+        "mode": "new",
+        "bodyId": "cylinder"
+      }
+    }
+  ]
+}

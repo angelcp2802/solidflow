@@ -16,6 +16,12 @@ const sketch = (): SketchFeature => ({ id: 'sketch', name: 'Unit square', type: 
 const extrude = (): ExtrudeFeature => ({ id: 'solid', name: 'Finite solid', type: 'extrude', sketchId: 'sketch',
   depth: 4, symmetric: false, suppressed: false });
 const fixture = (): Feature[] => [plane('plane-a'), plane('plane-b', 'plane-a'), sketch(), extrude()];
+
+it.each([false, true])('declines legacy prism provenance whenever a second direction is declared, enabled=%s', enabled => {
+  const features = fixture();
+  (features[3] as ExtrudeFeature).secondDirection = { enabled, depth: 2 };
+  expect(entityPrismContextFromFeatures(features, 'solid')).toBeUndefined();
+});
 function identity(features: Feature[]): string {
   const context = entityPrismContextFromFeatures(features, 'solid');
   if (!context) throw new Error('Eligible ordered ancestry expected.');
@@ -78,6 +84,26 @@ it('rejects an active earlier solid as ancestry for a standalone producer', () =
   features.splice(4, 0, supported);
   (features[5] as ExtrudeFeature).sketchId = supported.id;
   expect(entityPrismContextFromFeatures(features, 'solid')).toBeUndefined();
+});
+
+it('excludes thin-wall producers and their suppressed ancestry from filled-prism provenance', () => {
+  const features = fixture();
+  (features[3] as ExtrudeFeature).thinWall = { kind: 'mid-plane', thickness: 1 };
+  expect(entityPrismContextFromFeatures(features, 'solid')).toBeUndefined();
+  const earlier: ExtrudeFeature = { ...extrude(), id: 'earlier', suppressed: true,
+    thinWall: { kind: 'one-side', thickness: 1, reversed: false } };
+  const supported: SketchFeature = { ...sketch(), id: 'supported', support: { kind: 'face',
+    face: { sourceFeatureId: earlier.id, key: 'face-v2|' + 'a'.repeat(64) } } };
+  const source = { ...extrude(), sketchId: supported.id };
+  expect(entityPrismContextFromFeatures([...fixture().slice(0, 3), earlier, supported, source], 'solid')).toBeUndefined();
+});
+
+it('does not read an executable thin-wall declaration while declining filled-prism provenance', () => {
+  const features = fixture();
+  let calls = 0;
+  Object.defineProperty(features[3], 'thinWall', { enumerable: true, get: () => { calls++; throw new Error('untrusted getter'); } });
+  expect(entityPrismContextFromFeatures(features, 'solid')).toBeUndefined();
+  expect(calls).toBe(0);
 });
 
 it.each(['cut', 'suppressed', 'endCondition', 'zero', 'nonfinite'] as const)(

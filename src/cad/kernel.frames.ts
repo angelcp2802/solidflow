@@ -1,4 +1,4 @@
-import type { Plane, PlaneFrame, Vec3 } from './kernel.types';
+import type { Plane, PlaneFrame, SurfaceOffset, Vec3 } from './kernel.types';
 
 export const frameDot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 export const frameCross = (a: Vec3, b: Vec3): Vec3 => [
@@ -10,6 +10,11 @@ function unit(vector: Vec3): Vec3 {
   if (!vector.every(Number.isFinite) || length < 1e-12) throw new Error('La dirección del plano no es válida.');
   return scale(vector, 1 / length);
 }
+
+export const samePlaneFrame = (a: PlaneFrame, b: PlaneFrame): boolean =>
+  a.origin.every((value, axis) => value === b.origin[axis]) &&
+  a.xDirection.every((value, axis) => value === b.xDirection[axis]) &&
+  a.normal.every((value, axis) => value === b.normal[axis]);
 
 export function clonePlaneFrame(frame: PlaneFrame): PlaneFrame {
   return { origin: [...frame.origin], xDirection: [...frame.xDirection], normal: [...frame.normal] };
@@ -30,6 +35,14 @@ export function offsetPlaneFrame(frame: PlaneFrame, offset: number, reversed = f
     xDirection: [...frame.xDirection],
     normal: scale(frame.normal, reversed ? -1 : 1),
   };
+}
+
+/** The resolved limit supplies the oriented normal. Translations already use world axes. */
+export function offsetLimitFrame(frame: PlaneFrame, offset: SurfaceOffset): PlaneFrame {
+  if (offset.construction === 'normal') return offsetPlaneFrame(frame, offset.signedDistanceMm);
+  const result = clonePlaneFrame(frame);
+  result.origin = result.origin.map((value, axis) => value + offset.translationWorldMm[axis]) as Vec3;
+  return result;
 }
 
 export const frameYDirection = (frame: PlaneFrame): Vec3 => frameCross(frame.normal, frame.xDirection);

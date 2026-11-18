@@ -4,7 +4,7 @@ import { applyBodyCommand, prepareBodyCommand, type BodyCommandState } from './b
 import { createdBodyIds, featureCurrentBodyReferences } from './bodyReferences'
 import { parseDocument, serializeDocument, validateDocument, type Document } from './document'
 import { withFeaturePatternMode } from './featurePatternCommands'
-import { isAllFeaturePattern, type FeaturePatternOperation, type SelectedFeaturePatternOperation } from './featurePatterns'
+import { isDynamicFeaturePattern, type FeaturePatternOperation, type SelectedFeaturePatternOperation } from './featurePatterns'
 
 // Original symbolic ownership records. No native geometry or healthy native
 // preview is constructed; command receipts below exercise model attestation only.
@@ -122,7 +122,7 @@ describe('saved feature pattern calculation methods', () => {
   it.each(kinds)('toggles %s methods without changing identities, placements or historical routing', kind => {
     const original = pattern(kind), before = structuredClone(original)
     const regenerated = withFeaturePatternMode(original, 'regenerate'), copied = withFeaturePatternMode(regenerated, 'geometry')
-    if (!regenerated.featurePattern || isAllFeaturePattern(regenerated.featurePattern)) throw new Error('Original selected fixture required')
+    if (!regenerated.featurePattern || isDynamicFeaturePattern(regenerated.featurePattern)) throw new Error('Original selected fixture required')
     expect(copied).toEqual(original)
     expect(regenerated.id).toBe(original.id)
     expect(regenerated.featurePattern!.targets).toEqual([child, b])

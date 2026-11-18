@@ -141,3 +141,49 @@ not independently checked. It is not a complete workflow-command pass or cleanup
 proof. The earlier successful invocation above remains tied to its
 listed launcher bytes; neither result replaces the other. The separate checkpoint
 and full-suite failure are recorded in [VALIDATION.md](VALIDATION.md).
+
+### Historical face with coincident owners
+
+`npm run test:desktop:pattern-world-face-limit` opens the original project-owned
+`pattern-world-face-limit-original.json` fixture. It extends the two-box linear
+example above with two coincident boxes from (10, −2, −3) to (12, 2, 1) mm.
+A single cut makes a 1 mm recess of radius 0.25 mm in both. The saved reference
+was captured from the top planar face of `face-limit` after this shared cut.
+Both limit bodies have volume 32 − π/16 mm³. A geometrical copy cuts 7 mm
+from the target. Recalculation against the historical plane z = 1 cuts 3 mm.
+The worker must preserve each owner's exact ID, volume and bounds when the
+editor rejects the coincident decoy, cancels a valid preview, commits, undoes,
+redoes, saves and reopens. Volume tolerance is 10⁻⁵ mm³ and bounds tolerance
+is 10⁻⁶ mm per coordinate. All dimensions and geometry originate in this project.
+
+`node scripts/desktop-pattern-datum-limit.cjs` derives an original test-owned part
+from the same two-box fixture. A reversed principal XY datum at z = 2 mm and
+its 1 mm child offset yield z = 1 mm with normal −Z. A 1 mm normal offset
+places the cut end at z = 0 mm. On linear translation by (3, 0, 4) mm, the
+fixed endpoint produces a 2 mm cut and the transformed endpoint a 6 mm cut.
+The desktop route selects each policy, validates both volumes, cancels, applies,
+undoes, redoes, saves and reopens. The native integration also exercises both
+policies under a half-turn about Y and a reflection about XY at z = 2 mm.
+
+Placement precedes offset construction. An oriented normal follows the placed
+datum. A translation is then applied with its original world XYZ components.
+The original oblique vector (0.25, −0.75, 2) mm yields a 5 mm cut after each
+half-turn and mirror in the native fixture. Applying the vector before placement
+would give 9 mm. Exact native material probes lie 0.5 mm on either side of each end.
+
+### Transformed sketch support
+
+The project-original construction in `scripts/desktop-pattern-sketch-support-original.cjs`
+defines a 90-degree rotation about Y at (12, 0, 0) mm. Two oriented datums place
+the sketch at z = 4 mm with normal −Z. Its chart point (5, −5) is at (5, 5, 4)
+in part coordinates. Its occurrence starts at (16, 5, 7) mm with ray −X.
+An entity circle has authored radius 1 mm, a driving radius of 2 mm and a driven
+measurement. The original cut removes 4 mm of material from the source. Its
+geometric copy removes 4 mm from the target. Regeneration removes 8 mm,
+giving target volume 1000 − 32π mm³. `node scripts/desktop-pattern-sketch-support.cjs`
+checks both target volumes and the source graph through the real selector,
+verified preview, Cancel, Apply, Undo, Redo, Save As and reopen. The native
+blind variants check a 2 mm enclosed cavity against both material probes and
+independent surface/volume expectations. Earlier-node edits, a different
+active address, another physical shape and another reconstruction epoch
+invalidate the corresponding native proposals.

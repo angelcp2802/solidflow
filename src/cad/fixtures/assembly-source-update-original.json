@@ -1,0 +1,249 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "original-source-update-parent",
+  "revision": "r1",
+  "name": "Original source update parent",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "original-update-box",
+      "revision": "r0",
+      "document": {
+        "version": 1,
+        "id": "original-update-box",
+        "name": "Original update box",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "rectangle",
+            "type": "sketch",
+            "name": "Original rectangle",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                1,
+                1.5
+              ],
+              "width": 2,
+              "height": 3
+            }
+          },
+          {
+            "id": "prism",
+            "type": "extrude",
+            "name": "Original 4 mm prism",
+            "sketchId": "rectangle",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "original-update-body"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "assembly",
+      "id": "original-update-source",
+      "revision": "r0",
+      "name": "Original update source",
+      "createdAt": "2026-10-22T00:00:00.000Z",
+      "updatedAt": "2026-10-22T00:00:00.000Z",
+      "occurrences": [
+        {
+          "id": "m",
+          "name": "m",
+          "definition": {
+            "id": "original-update-box",
+            "revision": "r0"
+          },
+          "pose": {
+            "translation": [
+              1,
+              2,
+              3
+            ],
+            "rotation": [
+              0,
+              0,
+              0.7071067811865476,
+              0.7071067811865476
+            ]
+          },
+          "fixed": true,
+          "suppressed": false,
+          "visible": true
+        }
+      ],
+      "mates": [
+        {
+          "id": "source-local-plane",
+          "name": "source-local-plane",
+          "type": "distance",
+          "suppressed": false,
+          "alignment": "aligned",
+          "distance": -3,
+          "first": {
+            "kind": "principal-plane",
+            "component": null,
+            "plane": "XY"
+          },
+          "second": {
+            "kind": "principal-plane",
+            "component": {
+              "occurrencePath": [
+                "m"
+              ],
+              "definition": {
+                "id": "original-update-box",
+                "revision": "r0"
+              }
+            },
+            "plane": "XY"
+          }
+        }
+      ]
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "left",
+      "name": "left",
+      "definition": {
+        "id": "original-update-source",
+        "revision": "r0"
+      },
+      "pose": {
+        "translation": [
+          -10,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "suppressed": false,
+      "visible": true
+    },
+    {
+      "id": "right",
+      "name": "right",
+      "definition": {
+        "id": "original-update-source",
+        "revision": "r0"
+      },
+      "pose": {
+        "translation": [
+          20,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "suppressed": false,
+      "visible": true
+    },
+    {
+      "id": "outside",
+      "name": "outside",
+      "definition": {
+        "id": "original-update-box",
+        "revision": "r0"
+      },
+      "pose": {
+        "translation": [
+          50,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "suppressed": false,
+      "visible": true
+    }
+  ],
+  "mates": [
+    {
+      "id": "root-left",
+      "name": "root-left",
+      "type": "distance",
+      "suppressed": false,
+      "alignment": "aligned",
+      "distance": -3,
+      "first": {
+        "kind": "principal-plane",
+        "component": null,
+        "plane": "XY"
+      },
+      "second": {
+        "kind": "principal-plane",
+        "component": {
+          "occurrencePath": [
+            "left",
+            "m"
+          ],
+          "definition": {
+            "id": "original-update-box",
+            "revision": "r0"
+          }
+        },
+        "plane": "XY"
+      }
+    },
+    {
+      "id": "root-right",
+      "name": "root-right",
+      "type": "distance",
+      "suppressed": false,
+      "alignment": "aligned",
+      "distance": -3,
+      "first": {
+        "kind": "principal-plane",
+        "component": null,
+        "plane": "XY"
+      },
+      "second": {
+        "kind": "principal-plane",
+        "component": {
+          "occurrencePath": [
+            "right",
+            "m"
+          ],
+          "definition": {
+            "id": "original-update-box",
+            "revision": "r0"
+          }
+        },
+        "plane": "XY"
+      }
+    }
+  ]
+}

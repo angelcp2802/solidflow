@@ -123,7 +123,7 @@
     }
   ],
   "electron": {
-    "version": "44.7.0",
+    "version": "44.9.3",
     "license": "MIT",
     "files": [
       "electron-LICENSE"

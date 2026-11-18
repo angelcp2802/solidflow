@@ -39,7 +39,7 @@ it('extracts intrinsic entity placement without issuing solved geometry or weake
   expect(() => fixedProfileInstanceInput(closure, 'seed', '1,0')).toThrow('unsolved entity');
   expect(() => intrinsicProfileInstancePlacement(closure, 'seed', '2,0')).toThrow('active');
 });
-it('retains associative sketch/plane diagnostics for a saved datum support', () => {
+it('rejects a mixed placement at the responsible ancestor and requires a native solve for the transformed chain', () => {
   const { features, request, sketch } = fixture();
   features.splice(2, 0, { id: 'source-datum', name: 'Original earlier XY datum', type: 'plane', suppressed: false,
     support: { kind: 'principal', plane: 'XY' }, offset: 0, reversed: false });
@@ -48,9 +48,31 @@ it('retains associative sketch/plane diagnostics for a saved datum support', () 
   request.referencePolicies = [{ featureId: sketch.id, path: 'support', placement: 'transform' },
     { featureId: 'source-datum', path: 'support', placement: 'world' }];
   const closure = extractRecipeClosure(features, request);
-  expect(closure.diagnostics.map(item => item.code)).toEqual(expect.arrayContaining(['ASSOCIATIVE_SKETCH_PENDING', 'ASSOCIATIVE_PLANE_PENDING', 'SOLVED_PROFILE_PENDING']));
+  expect(closure.diagnostics.map(({ code, featureId, path }) => ({ code, featureId, path }))).toEqual([
+    { code: 'ASSOCIATIVE_PLANE_PENDING', featureId: 'source-datum', path: 'support' },
+  ]);
   expect(() => requireInitialRecipeDeclaration(closure)).toThrow();
+
+  request.referencePolicies[1].placement = 'transform';
+  const transformed = requireInitialRecipeDeclaration(extractRecipeClosure(features, request));
+  expect(transformed.nativeRequirements).toContainEqual({ kind: 'exact-plane', planeId: 'source-datum' });
+  const placement = intrinsicProfileInstancePlacement(transformed, 'seed', '1,0');
+  expect(placement.sketchId).toBe(sketch.id);
+  expect(Object.hasOwn(placement, 'profile')).toBe(false);
+  expect(() => fixedProfileInstanceInput(transformed, 'seed', '1,0')).toThrow('unsolved entity');
 });
+it('extracts an entity Blind depth table as placement without substituting saved coordinates for the solved profile', () => {
+  const { features, request } = fixture(), seed = features[3];
+  if (seed.type !== 'cut') throw new Error('Original cut required.');
+  delete seed.endCondition;
+  request.variation = { kind: 'dimensions', values: [{ address: '1,0', featureId: 'seed', parameter: 'depth', value: 2 }] };
+  const closure = requireInitialRecipeDeclaration(extractRecipeClosure(features, request));
+  const placement = intrinsicProfileInstancePlacement(closure, 'seed', '1,0');
+  expect(placement).toMatchObject({ signedDepth: 2, termination: { kind: 'blind', signedDepth: 2, symmetric: false } });
+  expect(Object.hasOwn(placement, 'profile')).toBe(false);
+  expect(() => fixedProfileInstanceInput(closure, 'seed', '1,0')).toThrow('unsolved entity');
+});
+
 it('retains variation diagnostics rather than treating varied entities as fixed replay', () => {
   const { features, request } = fixture();
   request.variation = { kind: 'dimensions', values: [{ address: '1,0', featureId: 'seed', parameter: 'depth', value: 2 }] };
@@ -74,7 +96,7 @@ it('retains additive ALL, AUTO and nested-operation gates', () => {
   request.scope = { mode: 'all', reevaluateAt: 'patternInput' }; request.bindings[0].targets = 'scope';
   expect(extractRecipeClosure(features, request).diagnostics.map(item => item.code)).toContain('ALL_POSITIVE_SCOPE_PENDING');
   request.scope = { mode: 'auto', capturedBodyIds: ['A'], captureFingerprint: 'original-unissued-capture', follow: 'sameIdentityAtPatternInput' };
-  expect(extractRecipeClosure(features, request).diagnostics.map(item => item.code)).toContain('AUTO_DISCOVERY_PENDING');
+  expect(extractRecipeClosure(features, request).diagnostics.map(item => item.code)).toContain('ALL_POSITIVE_SCOPE_PENDING');
   const nested: RepetitionFeature = { id: 'seed', name: 'Original nested declaration', type: 'linearPattern', suppressed: false,
     baseFeatureId: 'create-S', source: { mode: 'features', geometryPattern: true, featureIds: ['create-S'] },
     first: { direction: [1, 0, 0], spacing: 2, count: 2 }, second: null, secondSeedOnly: false, skipped: [] };

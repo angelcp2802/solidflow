@@ -1,0 +1,8 @@
+.part-help-dialog.modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(520px, calc(100vw - 56px));
+  font: inherit;
+}
+.part-help-dialog::backdrop { background: #29475f59; }

@@ -1,0 +1,153 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-limit-distance-original",
+  "revision": "r1",
+  "name": "Intervalo original entre planos",
+  "units": "mm",
+  "createdAt": "2026-10-16T00:00:00.000Z",
+  "updatedAt": "2026-10-16T00:00:00.000Z",
+  "occurrences": [
+    {
+      "id": "fixed",
+      "name": "Bloque fijo original",
+      "definition": {
+        "id": "limit-distance-fixed",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "moving",
+      "name": "Bloque móvil original",
+      "definition": {
+        "id": "limit-distance-moving",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          22
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": [],
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "limit-distance-fixed",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "limit-distance-fixed",
+        "name": "Original 40 by 30 by 4 fixed block",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "fixed-profile",
+            "name": "Original 40 by 30 rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 40,
+              "height": 30
+            }
+          },
+          {
+            "id": "fixed-solid",
+            "name": "Original 4 mm block",
+            "type": "extrude",
+            "sketchId": "fixed-profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "limit-fixed-body"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "limit-distance-moving",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "limit-distance-moving",
+        "name": "Original 10 by 6 by 2 moving block",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "moving-profile",
+            "name": "Original 10 by 6 rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 10,
+              "height": 6
+            }
+          },
+          {
+            "id": "moving-solid",
+            "name": "Original 2 mm block",
+            "type": "extrude",
+            "sketchId": "moving-profile",
+            "depth": 2,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "limit-moving-body"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

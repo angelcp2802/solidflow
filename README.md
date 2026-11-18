@@ -45,9 +45,21 @@ No external CAD installation or account is required.
   and STEP/STL export built on OpenCascade BRep geometry.
 - [Owned STEP base solids](docs/STEP_IMPORT.md) with preserved placement,
   explicit units and editable downstream operations, saved inside the document.
+- Local, unpublished [rigid assembly workspace](docs/ASSEMBLIES.md): reused embedded parts,
+  occurrence-scoped selection, native scenes, basic mates, gear coupling and
+  [screw relations](docs/ASSEMBLY_SCREWS.md),
+  solver preview/Apply, constrained numeric targets with
+  [explicit angular turns](docs/ASSEMBLY_MOTION.md), local pointer projection,
+  guarded rectilinear
+  contact stopping, static interference inspection, declaration BOM views/CSV,
+  bounded history, version-2 document persistence and explicit
+  [linked-source reload/review](docs/ASSEMBLY_LINKED_SOURCES.md) with an embedded
+  offline copy and [explicit source revision authoring](docs/ASSEMBLY_SOURCE_REVISIONS.md).
+  Check its source-specific
+  validation and remaining scope before treating it as complete assembly support.
 
 The interface currently uses Spanish labels. Unsupported commands are disabled.
-Assemblies, technical drawings, sheet metal, simulation, general CAD import and
+Full assemblies, technical drawings, sheet metal, simulation, general CAD import and
 complete persistent topological naming are still pending.
 
 Sketch fillets handle line/arc pairs and batches of common straight-line

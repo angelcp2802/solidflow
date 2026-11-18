@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { createRequire } from 'node:module';
+import { parseDocument, serializeDocument, updateFeature, validateDocument } from '../model/document';
+import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
-import FeaturePatternPanel from './FeaturePatternPanel';
-import { withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
+import FeaturePatternPanel, { FeaturePatternWorldLimits, SketchSupportPlacement } from './FeaturePatternPanel';
+import { featurePatternBuildMessage } from './featurePatternBuildMessage';
+import { withFeaturePatternInstanceDepth, withFeaturePatternMode, withFeaturePatternWorldLimit, withTransformedSketchSupports } from '../model/featurePatternCommands';
 
 // Original symbolic render inputs. These do not exercise pointer events or CAD.
 const base = { bodyId: 'ui-world-owner', sourceFeatureId: 'ui-world-base' };
@@ -26,6 +30,25 @@ function render(feature: RepetitionFeature, features = history, loading = false)
       onPicking: () => {}, onSelection: () => {} }} />);
 }
 const control = (html: string) => html.match(/<input[^>]*aria-label="Mantener plano límite fijo de Corte hasta XY"[^>]*>/)?.[0];
+const FIRST = 'Mantener plano límite fijo de Corte hasta XY', SECOND = 'Mantener plano límite fijo de dirección 2 de Corte hasta XY';
+interface ControlProps { children?: ReactNode; 'aria-label'?: string; checked?: boolean; disabled?: boolean; value?: string; onChange?: (event: { target: { checked?: boolean; value?: string } }) => void }
+function field(root: ReactNode, label: string): ReactElement<ControlProps> {
+  let found: ReactElement<ControlProps> | undefined;
+  const visit = (node: ReactNode) => Children.forEach(node, child => {
+    if (!isValidElement<ControlProps>(child)) return;
+    if (child.props['aria-label'] === label) found = child;
+    else if (child.props.children) visit(child.props.children);
+  });
+  visit(root);
+  if (!found) throw Error('Missing world-limit control: ' + label);
+  return found;
+}
+function twoTargets() {
+  const features = structuredClone(history), seed = features.at(-1);
+  if (seed?.type !== 'cut') throw Error('Original cut required.');
+  seed.secondDirection = { enabled: true, depth: 3, endCondition: { kind: 'upToSurface', target: { kind: 'principal', plane: 'XZ' } } };
+  return { features, seed };
+}
 
 describe('rendered principal-plane recipe choice', () => {
   it('shows a required explicit choice without selecting it on behalf of the user', () => {
@@ -59,4 +82,223 @@ describe('rendered principal-plane recipe choice', () => {
     seed.endCondition = { kind: 'upToSurface', target: { kind: 'plane', planeId: 'unsupported-datum' } };
     expect(render(pattern(), changed)).not.toContain('Mantener plano límite fijo');
   });
+
+  it('offers D2 explicitly when D1 is Blind without changing either source declaration', () => {
+    const { features, seed } = twoTargets(); delete seed.endCondition;
+    const before = structuredClone(features), html = render(pattern(), features);
+    expect(control(html)).toBeUndefined();
+    expect(html).toContain(`aria-label="${SECOND}"`);
+    expect(html.match(new RegExp(`<input[^>]*aria-label="${SECOND}"[^>]*>`))?.[0]).not.toContain('checked=""');
+    expect(features).toEqual(before);
+  });
+
+  it('toggles each locator independently for the same seed and keeps both checkbox states truthful', () => {
+    const { features } = twoTargets(), onChange = vi.fn();
+    let feature = withFeaturePatternWorldLimit(withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true), current.sourceFeatureId, true, 'secondDirection.endCondition.target');
+    const original = structuredClone(feature);
+    const root = () => FeaturePatternWorldLimits({ feature, features, loading: false, onChange });
+    expect(field(root(), FIRST).props.checked).toBe(true); expect(field(root(), SECOND).props.checked).toBe(true);
+    field(root(), FIRST).props.onChange?.({ target: { checked: false } });
+    feature = { ...feature, ...onChange.mock.lastCall![0] };
+    expect(feature.featurePattern).toMatchObject({ referencePolicies: [{ featureId: current.sourceFeatureId, path: 'secondDirection.endCondition.target', placement: 'world' }] });
+    expect(field(root(), FIRST).props.checked).toBe(false); expect(field(root(), SECOND).props.checked).toBe(true);
+    field(root(), FIRST).props.onChange?.({ target: { checked: true } });
+    feature = { ...feature, ...onChange.mock.lastCall![0] };
+    field(root(), SECOND).props.onChange?.({ target: { checked: false } });
+    feature = { ...feature, ...onChange.mock.lastCall![0] };
+    expect(feature.featurePattern).toMatchObject({ referencePolicies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world' }] });
+    expect(field(root(), FIRST).props.checked).toBe(true); expect(field(root(), SECOND).props.checked).toBe(false);
+    expect(original.featurePattern).toMatchObject({ referencePolicies: expect.any(Array) });
+    expect(original.featurePattern?.mode === 'regenerate' && original.featurePattern.referencePolicies).toHaveLength(2);
+  });
+
+  it('retains an editable inactive principal-plane policy without marking the reference unavailable', () => {
+    const { features, seed } = twoTargets(), onChange = vi.fn(); seed.secondDirection!.enabled = false;
+    const feature = withFeaturePatternWorldLimit(withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true), current.sourceFeatureId, true, 'secondDirection.endCondition.target');
+    const root = FeaturePatternWorldLimits({ feature, features, loading: false, onChange });
+    expect(field(root, FIRST).props.checked).toBe(true); expect(field(root, SECOND).props.checked).toBe(true);
+    expect(field(root, SECOND).props.disabled).toBe(false);
+    expect(renderToStaticMarkup(root)).not.toContain('no disponible');
+    field(root, SECOND).props.onChange?.({ target: { checked: false } });
+    expect(onChange.mock.lastCall![0].featurePattern.referencePolicies).toEqual([{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world' }]);
+    expect(seed.secondDirection).toMatchObject({ enabled: false, depth: 3, endCondition: { kind: 'upToSurface' } });
+  });
+
+  it.each(['face', 'datum', 'removed'] as const)('removes only a stale second policy after its source becomes %s', state => {
+    const { features, seed } = twoTargets(), onChange = vi.fn();
+    const feature = withFeaturePatternWorldLimit(withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true), current.sourceFeatureId, true, 'secondDirection.endCondition.target');
+    if (state === 'face') seed.secondDirection!.endCondition = { kind: 'upToSurface', target: { kind: 'face', face: { sourceFeatureId: base.sourceFeatureId, key: 'face-v1|original' } } };
+    if (state === 'datum') seed.secondDirection!.endCondition = { kind: 'upToSurface', target: { kind: 'plane', planeId: 'datum' } };
+    if (state === 'removed') delete seed.secondDirection!.endCondition;
+    const root = FeaturePatternWorldLimits({ feature, features, loading: false, onChange });
+    expect(field(root, FIRST).props.checked).toBe(true);
+    const stale = field(root, 'Quitar plano límite no disponible de dirección 2');
+    expect(stale.props.checked).toBe(true); stale.props.onChange?.({ target: { checked: false } });
+    expect(onChange.mock.lastCall![0].featurePattern.referencePolicies).toEqual([{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world' }]);
+    expect(feature.featurePattern?.mode === 'regenerate' && feature.featurePattern.referencePolicies).toHaveLength(2);
+  });
+
+  it('withholds both toggles and stale-policy removal while loading', () => {
+    const { features, seed } = twoTargets(), onChange = vi.fn();
+    const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true, 'secondDirection.endCondition.target');
+    const root = FeaturePatternWorldLimits({ feature, features, loading: true, onChange });
+    for (const label of [FIRST, SECOND]) {
+      expect(field(root, label).props.disabled).toBe(true);
+      field(root, label).props.onChange?.({ target: { checked: true } });
+    }
+    delete seed.secondDirection!.endCondition;
+    const stale = field(FeaturePatternWorldLimits({ feature, features, loading: true, onChange }), 'Quitar plano límite no disponible de dirección 2');
+    expect(stale.props.disabled).toBe(true); stale.props.onChange?.({ target: { checked: false } });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('fixed-plane worker diagnostic presentation', () => {
+  const firstPath = 'endCondition.target';
+  const secondPath = 'secondDirection.endCondition.target';
+  const raw = (path: string, seedId = current.sourceFeatureId) =>
+    `${seedId}:${path}: An external/internal support needs a saved remap policy; no world/latest/nearest default.`;
+
+  it.each([
+    { path: firstPath, plane: 'XY', direction: 1, label: 'Mantener el plano límite de Corte hasta XY' },
+    { path: secondPath, plane: 'XZ', direction: 2, label: 'Mantener el plano límite de dirección 2 de Corte hasta XY' },
+  ])('names only the actual missing principal-plane choice for direction $direction', ({ path, plane, direction, label }) => {
+    const feature = pattern(), { features } = twoTargets();
+    const diagnostic = Object.freeze({ id: feature.id, message: raw(path) });
+    expect(featurePatternBuildMessage(diagnostic, feature, features)).toBe(
+      `Para recalcular la dirección ${direction} hasta el plano ${plane}, activa «${label}» en «Planos límite».`,
+    );
+    expect(diagnostic.message).toBe(raw(path));
+    expect(render(feature, features)).toContain(label);
+  });
+
+  it.each([
+    { message: raw('support'), id: 'ui-world-pattern' },
+    { message: raw(firstPath, 'foreign-seed'), id: 'ui-world-pattern' },
+    { message: raw(firstPath), id: 'another-pattern' },
+    { message: raw(secondPath) + '\nAnother worker diagnostic.', id: 'ui-world-pattern' },
+    { message: raw(firstPath).replace('saved remap policy', 'world limit'), id: 'ui-world-pattern' },
+  ])('retains unmatched worker text verbatim', diagnostic => {
+    expect(featurePatternBuildMessage(diagnostic, pattern(), twoTargets().features)).toBe(diagnostic.message);
+  });
+
+  it('retains the raw message for a saved policy at this exact locator', () => {
+    const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true, secondPath);
+    const diagnostic = { id: feature.id, message: raw(secondPath) };
+    expect(featurePatternBuildMessage(diagnostic, feature, twoTargets().features)).toBe(diagnostic.message);
+  });
+
+  it.each(['face', 'datum', 'inactive', 'suppressed'] as const)('retains the raw message for a %s limit', state => {
+    const feature = pattern(), { seed, features } = twoTargets();
+    if (state === 'face') seed.secondDirection!.endCondition = { kind: 'upToSurface', target: { kind: 'face',
+      face: { sourceFeatureId: base.sourceFeatureId, key: 'face-v1|original' } } };
+    if (state === 'datum') seed.secondDirection!.endCondition = { kind: 'upToSurface', target: { kind: 'plane', planeId: 'datum' } };
+    if (state === 'inactive') seed.secondDirection!.enabled = false;
+    if (state === 'suppressed') seed.suppressed = true;
+    const diagnostic = { id: feature.id, message: raw(secondPath) };
+    expect(featurePatternBuildMessage(diagnostic, feature, features)).toBe(diagnostic.message);
+  });
+});
+
+it('requires an explicit historical owner and keeps the opposite principal limit when editing the face choice', () => {
+  const { features, seed } = twoTargets();
+  seed.endCondition = { kind: 'upToSurface', target: { kind: 'face', face: { sourceFeatureId: base.sourceFeatureId, key: 'face-v1|' + 'a'.repeat(64) } } };
+  let feature = withFeaturePatternWorldLimit(pattern(), seed.id, true, 'secondDirection.endCondition.target');
+  const onChange = vi.fn(), steps = [{ id: base.sourceFeatureId, name: 'Base', choices: [{ ref: base, name: 'Cuerpo original', unavailable: false }] }];
+  const label = 'Cuerpo de la cara límite de ' + seed.name + ' · dirección 1';
+  const editor = (loading: boolean) => field(FeaturePatternWorldLimits({ feature, features, loading, history: steps, onChange }), label);
+  const value = JSON.stringify([base.bodyId, base.sourceFeatureId]);
+  expect(editor(false).props.value).toBe('');
+  editor(true).props.onChange?.({ target: { value } }); expect(onChange).not.toHaveBeenCalled();
+  editor(false).props.onChange?.({ target: { value: 'not-an-option' } }); expect(onChange).not.toHaveBeenCalled();
+  editor(false).props.onChange?.({ target: { value } }); feature = { ...feature, ...onChange.mock.lastCall![0] };
+  expect(editor(false).props.value).toBe(value);
+  expect(feature.featurePattern).toMatchObject({ referencePolicies: [
+    { featureId: seed.id, placement: 'world', path: 'secondDirection.endCondition.target' },
+    { featureId: seed.id, placement: 'world', path: 'endCondition.target', owner: base },
+  ] });
+  editor(false).props.onChange?.({ target: { value: '' } }); feature = { ...feature, ...onChange.mock.lastCall![0] };
+  expect(editor(false).props.value).toBe('');
+  expect(feature.featurePattern).toMatchObject({ referencePolicies: [{ path: 'secondDirection.endCondition.target' }] });
+});
+
+it('keeps independent world and transform policies for two ends on an associated datum', () => {
+  const { features, seed } = twoTargets(), onChange = vi.fn();
+  const datum: Feature = { id: 'linked-datum', name: 'Original offset datum', type: 'plane', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, offset: 2, reversed: true };
+  features.unshift(datum);
+  seed.secondDirection!.endCondition = { kind: 'upToSurface', target: { kind: 'plane', planeId: datum.id } };
+  let feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true);
+  const root = () => FeaturePatternWorldLimits({ feature, features, loading: false, onChange });
+  const transformed = 'Transformar plano límite de ' + seed.name + ' · dirección 2';
+  field(root(), transformed).props.onChange?.({ target: { checked: true } });
+  feature = { ...feature, ...onChange.mock.lastCall![0] };
+  expect(field(root(), FIRST).props.checked).toBe(true);
+  expect(field(root(), SECOND).props.checked).toBe(false);
+  expect(field(root(), transformed).props.checked).toBe(true);
+  expect(feature.featurePattern).toMatchObject({ referencePolicies: [
+    { path: 'endCondition.target', placement: 'world' }, { path: 'secondDirection.endCondition.target', placement: 'transform' }] });
+  field(root(), SECOND).props.onChange?.({ target: { checked: true } });
+  feature = { ...feature, ...onChange.mock.lastCall![0] };
+  expect(field(root(), SECOND).props.checked).toBe(true);
+  expect(field(root(), transformed).props.checked).toBe(false);
+});
+
+it('lets a user remove a saved depth variation after the source sketch gains a datum support', () => {
+  const original = validateDocument(createRequire(import.meta.url)('../../scripts/desktop-pattern-sketch-support-original.cjs')());
+  const sketch = original.features.find(item => item.id === 'profile-c'), seed = original.features.find(item => item.id === 'seed-limit');
+  if (sketch?.type !== 'sketch' || seed?.type !== 'cut') throw Error('Original associated sketch missing');
+  const support = sketch.support;
+  delete sketch.support; delete seed.endCondition;
+  const oldPattern = original.features.at(-1)! as RepetitionFeature;
+  const varied = withFeaturePatternInstanceDepth(withFeaturePatternMode(oldPattern, 'regenerate'), '1', 3);
+  const saved = parseDocument(serializeDocument(updateFeature(original, oldPattern.id, varied)));
+  const changed = updateFeature(saved, sketch.id, { support });
+  const feature = changed.features.at(-1)! as RepetitionFeature;
+  const features = changed.features.slice(0, -1), html = render(feature, features);
+  const selector = html.match(/<select[^>]*aria-label="Colocación de los soportes de croquis"[^>]*>/)?.[0];
+  expect(selector).toContain('disabled=""');
+  const onChange = vi.fn(), supportHistory = new Map(features.map(item => [item.id, item]));
+  const fieldFor = (candidate: RepetitionFeature) => field(SketchSupportPlacement({ feature: candidate, history: supportHistory, loading: false, onChange }),
+    'Colocación de los soportes de croquis');
+  fieldFor(feature).props.onChange?.({ target: { value: 'transform' } });
+  expect(onChange).not.toHaveBeenCalled();
+  const cleared = withFeaturePatternInstanceDepth(feature, '1', null);
+  expect(fieldFor(cleared).props.disabled).toBe(false);
+  fieldFor(cleared).props.onChange?.({ target: { value: 'transform' } });
+  expect(onChange.mock.lastCall?.[0].featurePattern.referencePolicies.map((item: { featureId: string }) => item.featureId))
+    .toEqual(['datum-a', 'datum-b', 'profile-c']);
+  expect(html).toContain('Plano · Plano derivado');
+  expect(html).not.toContain('Plano derivado · datum-b');
+  expect(html).toContain('Quitar profundidad de Instancia 2');
+  expect(html).toContain('Quita las variaciones por instancia');
+  expect(feature.featurePattern).toMatchObject({ variation: { kind: 'dimensions', values: [{ address: '1', value: 3 }] }, referencePolicies: [] });
+});
+
+it('offers explicit repair or clearing of a saved chain whose datum now rests on an earlier face', () => {
+  const require = createRequire(import.meta.url);
+  const original = require('../../scripts/desktop-pattern-sketch-support-original.cjs')();
+  const faceFixture = require('../cad/fixtures/pattern-world-face-limit-original.json');
+  const support = structuredClone(faceFixture.features.find((item: Feature) => item.id === 'seed-limit').endCondition.target);
+  const input = validateDocument({ ...original, features: [...structuredClone(faceFixture.features.slice(0, 6)), ...original.features] });
+  const pattern = input.features.at(-1)! as RepetitionFeature;
+  const recipe = withTransformedSketchSupports(withFeaturePatternMode(pattern, 'regenerate'), new Map(input.features.map(item => [item.id, item])), true);
+  const before = updateFeature(input, recipe.id, recipe);
+  const saved = parseDocument(serializeDocument(updateFeature(before, 'datum-a', { support })));
+  const feature = saved.features.at(-1)! as RepetitionFeature, features = saved.features.slice(0, -1);
+  const html = render(feature, features), onChange = vi.fn();
+  expect(html).toContain('Los soportes guardados ya no parten de un plano principal activo.');
+  expect(html).toContain('Corrige el plano o elige «Sin asignar».');
+  const root = SketchSupportPlacement({ feature, history: new Map(features.map(item => [item.id, item])), loading: false, onChange });
+  const selector = field(root, 'Colocación de los soportes de croquis');
+  expect(selector.props.disabled).toBe(false); expect(selector.props.value).toBe('partial');
+  selector.props.onChange?.({ target: { value: '' } });
+  const cleared = updateFeature(saved, recipe.id, onChange.mock.lastCall![0]);
+  expect(parseDocument(serializeDocument(cleared)).features.at(-1)).toMatchObject({ featurePattern: { referencePolicies: [] } });
+  const repaired = parseDocument(serializeDocument(updateFeature(saved, 'datum-a', { support: { kind: 'principal', plane: 'XY' } })));
+  const restored = repaired.features.at(-1)! as RepetitionFeature;
+  expect(restored).toEqual(before.features.at(-1));
+  const repairedRoot = SketchSupportPlacement({ feature: restored, history: new Map(repaired.features.map(item => [item.id, item])), loading: false, onChange: vi.fn() });
+  expect(field(repairedRoot, 'Colocación de los soportes de croquis').props.value).toBe('transform');
 });

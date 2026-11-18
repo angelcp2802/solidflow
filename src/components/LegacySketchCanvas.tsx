@@ -91,6 +91,7 @@ export default function LegacySketchCanvas({
     <div className={"sketch-canvas tool-" + tool}>
       <svg
         ref={svg}
+        tabIndex={0}
         viewBox={`${view.minX} ${view.minY} ${view.width} ${view.height}`}
         onPointerDown={(e) => {
           interacted.current = true;

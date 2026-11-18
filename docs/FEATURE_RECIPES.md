@@ -15,7 +15,7 @@ copies signed material contributions; that path remains separate.
 `geometryPattern:false` identify this internal extraction API. The request is
 derived from the explicit saved regeneration mode; the full request is not
 persisted. Saved selected targets/routes or dynamic ALL intent/scope routes,
-explicit principal-plane limit policies and no-variation intent are parsed strictly. History
+explicit principal-plane limit policies and the admitted variation table are parsed strictly. History
 index, canonical plan, target snapshot and
 closure are reconstructed. False without the explicit variant still rejects,
 and regeneration must not route to geometry-delta replay.
@@ -63,7 +63,10 @@ actual owner/face/plane lineages, scope discovery and evaluator revision before
 Apply. ALL additionally attests the complete current catalog, including owners
 that will not change, and rechecks exact refs, lineages and native shape identity
 at staging. Its scope is resolved at the actual pattern-input boundary rather
-than reconstructed from a saved target snapshot. AUTO discovery remains pending.
+than reconstructed from a saved target snapshot. [AUTO](FEATURE_REGENERATION.md#detect-and-follow-bodies-automatically-auto)
+uses a native discovery pass for capture and follows exact saved body identities
+through fresh native evaluations. The editable capture fingerprint records the
+original provenance. Current catalog attestation supplies publication authority.
 
 Math exports check plain dense saved data and descriptors before reading
 operands. Accessors, hidden/symbol fields, sparse arrays and custom prototypes
@@ -89,15 +92,21 @@ owned cut or merge extrusions, blind/through-all/UntilNext
 endings or an explicitly fixed principal-plane up-to-surface limit, and selected targets.
 The native evaluator separately requires authentic solved entity results;
 declaration eligibility does not issue that authority.
-The explicit ALL regeneration variant currently admits cuts from this intrinsic
-subset. ALL additive merge recipes report `ALL_POSITIVE_SCOPE_PENDING` before
-target copies or tools; remote-owner applicability remains unresolved. A failed
-Boolean is not treated as a geometric miss and no bounding-box heuristic selects
-an owner. This gate is an implementation limit, not evidence of external parity.
+The explicit ALL regeneration variant admits cuts from this intrinsic subset
+and the [bounded Blind primitive additive slice](FEATURE_REGENERATION.md#blind-primitive-additive-all).
+That additive slice requires a rectangle/circle sketch on a principal plane and
+omitted support/end-condition/thin-wall/second-direction fields. Other positive
+recipes report `ALL_POSITIVE_SCOPE_PENDING` before target copies or tools.
+Every current native owner is classified before union; a failed or inconclusive
+query is not a geometric miss. Multiowner contact rejects rather than consuming
+or implicitly fusing IDs. This limit is not evidence of external parity.
 Extraction alone does not resolve any native requirement. The initial native
 bridge/evaluator supports that subset, and the engine connects it to the
-explicit saved selected or cut-only dynamic ALL mode with bounded principal-plane policies
-and no variation. The geometry/true branch retains explicitly selected targets.
+explicit saved selected or dynamic ALL mode with its bounded operation/plane policies
+and the [selected Blind depth table](FEATURE_REGENERATION.md#depth-per-instance)
+or the [driving circle radius](FEATURE_REGENERATION.md#driving-sketch-radius-per-instance)
+and [anchored rectangle dimensions](FEATURE_REGENERATION.md#driving-rectangle-dimensions-per-instance).
+The geometry/true branch retains explicitly selected targets.
 
 UntilNext retains its exact historical source base in the extracted termination;
 the saved bindings separately route evaluation to each current progressive owner.
@@ -107,14 +116,27 @@ distinguishes complete tools, separated forward misses, contact and incomplete
 limits, including the selected/ALL rules. No additional reference-policy field
 or document version is introduced for this termination.
 
-Other up-to-surface reference policies, associative supports and
-face correspondence retain explicit pending diagnostics. A principal-plane
-world policy resolves the intrinsic document plane, never an inferred datum,
-face or same-instance parent. The offset-intent validator is a
-future contract utility; it does not add offset to the current end-condition
-union or evaluate a surface. A normal distance and an explicit world
-translation are different intents. A valid parent-route field alone does not
-attest the route's native existence.
+A world limit can reference a principal plane, a principal-rooted datum or a face of an explicitly
+identified historical body. For a face, each saved policy includes
+`owner: { bodyId, sourceFeatureId }` and the extrusion side's locator. The
+normal property panel asks for the historical owner. Existing principal-plane
+declarations retain their original form. The evaluator resolves the scoped
+v1 face locator within that owner's catalog, checks native occurrence and
+orientation, and uses the copy builder's modification history to identify the
+oriented occurrence in the detached historical body. A missing, ambiguous,
+forged or retired face fails. The face lease and owner are build-local.
+A world limit stays at the historical location through pattern placements.
+Transformed face limits, same-instance parent face roles and face-supported sketches
+still require their own correspondence evidence. An optional saved surface offset carries either
+a signed distance on the oriented support or a translation in document axes.
+Both extrusion directions retain the declaration. The world-principal recipe
+applies the offset to its own limit before native termination. A valid
+parent-route field alone does not attest the route's native existence.
+Ordinary extrusions can also translate an exact trimmed curved face. Normal
+offsets of curved faces and other recipe placements remain open. The ordinary
+extrusion editor offers independent normal/translation controls on each surface
+end; clearing an offset restores the absent legacy field. These offset controls
+do not select a recipe reference placement. See the [saved contract](../src/cad/extrude-end-conditions.md).
 
 The current evaluator handles canonical linear/circular/mirror placements,
 ordered intrinsic operations, exact historical sources, current targets and
@@ -122,8 +144,8 @@ same-address semantic parent body roles. Native and integrated fixtures check
 selected multi-feature/owner, no-op, late rejection and document-history paths.
 Parent roles retain semantic revisions, not parent BRep/face correspondence.
 Required work still includes other end/start conditions, exact dependent
-sketch/plane/face/constraint remapping, varying dimensions/sketches and equations,
-positive ALL and dynamic geometry scope, AUTO discovery policies, nested recipes,
+sketch/plane/face/constraint remapping, other varying dimensions/sketches and equations,
+broader positive ALL and dynamic geometry scope, nested recipes,
 creation/split/consumption/Combine
 identity ledgers, complete stale preview/Apply, suppression/rollback, picking,
 document lifecycle and export interoperability. Pending diagnostics block the
@@ -158,3 +180,41 @@ model/command, seven SSR, 18 native scope/evaluator, eight saved-engine and four
 contextual deletion cases. Their provenance is linked from the
 [regeneration contract](FEATURE_REGENERATION.md#dynamic-all-scope). These counts
 describe written fixtures, not a combined execution result or interaction proof.
+
+### Explicitly transformed sketch supports
+
+For a selected extruded cut or merge with fixed local dimensions, a sketch
+on an active principal-rooted datum chain may name `support` on the actual
+sketch ID and on each ancestor datum ID. Each record contains only `featureId`,
+`path` and `placement: "transform"`. The selected feature owns the sketch
+through its earlier `sketchId`; a datum belongs through the earlier support
+chain. Repeated locators and disconnected or future nodes are rejected.
+Suppression retains historical IDs on file and prevents evaluation of an
+unavailable support. A datum changed to an earlier historical face also retains
+its connected saved sketch/datum locators. That does not authorize a transformed
+face: the recipe still rejects its unavailable native owner/role contract. Users
+can repair the datum or explicitly clear the saved support choices.
+Empty or partially assigned chains require an explicit
+editor choice before native Apply. Existing files with absent support policy
+retain their authored graph. The support table shares the closure limit of 256
+definitions and the existing end-policy count stays capped at 32.
+
+Datum offsets and the sketch's own signed offset resolve on the original support
+before the single occurrence transform. The physical sketch frame uses the
+existing parity rule, keeping local winding and constraint IDs fixed. Each
+entity occurrence requires a fresh fully defined solve in the original chart
+and checks branch and driven values against the source checkpoint. Out-of-date
+owner, address, datum, target shape or source solve rejects the proposal.
+An end-condition offset is independent of those intrinsic offsets. Its normal
+follows its placed support and a literal XYZ translation uses world coordinates
+after support placement. World/mixed sketch placement, face-supported sketches,
+variable local constraints and same-instance face roles remain open.
+
+The support selector keeps existing per-instance variations intact. Remove those
+variations explicitly before changing support placement; the editor disables the
+selector and explains that requirement while any remain. Support rows show the
+saved plane or sketch names. Exact IDs remain in the document and native request.
+The production-renderer routes are available through
+`npm run test:desktop:pattern-datum-limit` and
+`npm run test:desktop:pattern-sketch-support`; CI runs them in each persistence
+batch. Configured checks are not evidence that a platform has passed them.

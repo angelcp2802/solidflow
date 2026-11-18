@@ -1,6 +1,8 @@
 import { cast, Face, getOC, measureShapeSurfaceProperties, type Shape3D } from 'replicad';
 import { withNativeOwners } from './kernel.native-ownership';
-import type { PlaneFrame, Vec3 } from './kernel.types';
+import { offsetLimitFrame } from './kernel.frames';
+import { planarNativeFaceFrame } from './kernel.faces';
+import type { PlaneFrame, SurfaceOffset, Vec3 } from './kernel.types';
 
 const TOLERANCE = 1e-6;
 type MakePrism = (length: number, start?: number) => Shape3D;
@@ -133,16 +135,26 @@ function planeFace(frame: PlaneFrame): Face {
 }
 
 /** A planar target extends analytically; a curved target retains its selected face's trim and branch. */
-export function upToSurfaceTool(target: { frame: PlaneFrame } | { face: Face }, origin: Vec3, direction: Vec3, makePrism: MakePrism): Shape3D {
+export function upToSurfaceTool(target: { frame: PlaneFrame } | { face: Face }, origin: Vec3, direction: Vec3, makePrism: MakePrism, offset?: SurfaceOffset): Shape3D {
   return withNativeOwners(owners => {
     let face: Face;
-    if ('frame' in target) face = owners.own(planeFace(target.frame));
-    else if (target.face.geomType === 'PLANE') {
+    if ('frame' in target) face = owners.own(planeFace(offset ? offsetLimitFrame(target.frame, offset) : target.frame));
+    else if (offset && target.face.geomType === 'PLANE') {
+      const frame = planarNativeFaceFrame(target.face);
+      face = owners.own(planeFace(offsetLimitFrame(frame, offset)));
+    } else if (target.face.geomType === 'PLANE') {
       face = owners.own(withNativeOwners(construct => {
         const surface = construct.own(getOC().BRep_Tool.Surface(target.face.wrapped)),
           builder = construct.own(new (getOC().BRepBuilderAPI_MakeFace)(surface, TOLERANCE));
         return construct.own(ownedFace(builder.Face()));
       }, result => [result], 'Falló la construcción o liberación de la superficie límite.'));
+    } else if (offset) {
+      if (offset.construction !== 'translation') throw Error('El desplazamiento normal de una cara curva requiere una superficie paralela compatible.');
+      const oc = getOC(), transform = owners.own(new oc.gp_Trsf()), vector = owners.own(new oc.gp_Vec(...offset.translationWorldMm));
+      transform.SetTranslation(vector);
+      const builder = owners.own(new oc.BRepBuilderAPI_Transform(target.face.wrapped, transform, true, false));
+      if (!builder.IsDone()) throw Error('No se pudo trasladar la cara límite.');
+      face = owners.own(ownedFace(builder.Shape()));
     } else face = owners.own(target.face.clone());
     const probe = owners.own(makePrism(1));
     const length = withNativeOwners(samples => {

@@ -1,7 +1,10 @@
-import { cast, getOC, makeCompound, type Shape3D } from 'replicad';
+import { cast, type Face, getOC, type Shape3D } from 'replicad';
 import type { BodyReference, CombineFeature } from './kernel.types';
 import { advanceLineage } from './kernel.naming';
-import { withNativeOwners } from './kernel.native-ownership';
+import { countNativeFaceOccurrences, uniqueNativeFaceOccurrence } from './kernel.native-face-membership';
+import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
+import { ownedNativeTopology } from './kernel.native-topology';
+import { withNativeValidationContext, type NativeValidationContext } from './kernel.native-validation';
 
 const MAX_BODIES = 256;
 const OWNED_TRANSFER = Symbol('validated-body-transfer');
@@ -159,15 +162,43 @@ export function bodyBoolean(operation: 'add' | 'subtract' | 'common', body: Shap
  * Identity transform with copyGeom=true duplicates even a direct isometry;
  * Shape.clone() alone only supplies another wrapper around shared topology.
  */
+function nativeBodyCopy(body: Shape3D, owners: Pick<NativeOwners, 'own'>) {
+  const oc = getOC(), identity = owners.own(new oc.gp_Trsf()),
+    builder = owners.own(new oc.BRepBuilderAPI_Transform(body.wrapped, identity, true, false));
+  if (!builder.IsDone()) throw new Error('No se pudo duplicar la geometría del cuerpo.');
+  const raw = owners.own(builder.Shape());
+  if (raw.IsNull() || raw.IsSame(body.wrapped)) throw new Error('La copia del cuerpo no tiene topología independiente.');
+  return { shape: owners.own(cast(raw)).asShape3D(), builder };
+}
+
 export function copyBodyShape(body: Shape3D): Shape3D {
-  return ownedShapeOperation(owners => {
-    const oc = getOC(), identity = owners.own(new oc.gp_Trsf()),
-      builder = owners.own(new oc.BRepBuilderAPI_Transform(body.wrapped, identity, true, false));
-    if (!builder.IsDone()) throw new Error('No se pudo duplicar la geometría del cuerpo.');
-    const raw = owners.own(builder.Shape());
-    if (raw.IsNull() || raw.IsSame(body.wrapped)) throw new Error('La copia del cuerpo no tiene topología independiente.');
-    return owners.own(cast(raw)).asShape3D();
-  });
+  return ownedShapeOperation(owners => nativeBodyCopy(body, owners).shape);
+}
+
+/** Transfer selected oriented occurrences through one deep-copy builder. The caller
+ * owns the copied body and each image in source order. Indices are local to this call.
+ */
+export function copyBodyWithFaces(body: Shape3D, sourceFaces: readonly Face[]): { shape: Shape3D; faces: Face[] } {
+  if (!sourceFaces.length || sourceFaces.length > 256) throw Error('A native copy needs between 1 and 256 selected face occurrences.');
+  return withNativeOwners(owners => {
+    for (const [index, face] of sourceFaces.entries()) {
+      if (sourceFaces.slice(0, index).some(prior => prior.wrapped.IsSame(face.wrapped))) throw Error('La selección contiene una cara duplicada.');
+      if (countNativeFaceOccurrences(body.wrapped, face.wrapped, true) !== 1) {
+        throw Error('The requested oriented face must occur exactly once on the original owner.');
+      }
+    }
+    const { shape, builder } = nativeBodyCopy(body, owners);
+    const faces = sourceFaces.map(sourceFace => {
+      const image = owners.own(builder.ModifiedShape(sourceFace.wrapped));
+      if (image.IsNull() || image.IsSame(sourceFace.wrapped)) {
+        throw Error('The copy builder did not identify a unique oriented face on its output.');
+      }
+      const face = owners.own(uniqueNativeFaceOccurrence(shape.wrapped, image));
+      if (face.wrapped.Orientation() !== sourceFace.wrapped.Orientation()) throw Error('The deep copy changed the source occurrence orientation.');
+      return face;
+    });
+    return { shape, faces };
+  }, result => [result.shape, ...result.faces], 'Native body and face copy or release failed.');
 }
 
 function volume(shape: Shape3D, owners: Owners): number {
@@ -178,11 +209,15 @@ function volume(shape: Shape3D, owners: Owners): number {
   return value;
 }
 
-function validBRep(shape: Shape3D, owners: Owners): number {
+function validBRep(shape: Shape3D, owners: Owners, context?: NativeValidationContext): number {
   if (shape.isNull) throw new Error('El cuerpo no contiene geometría.');
-  const oc = getOC(), analyzer = owners.own(new oc.BRepCheck_Analyzer(shape.wrapped, true, false, false));
-  if (!analyzer.IsValid()) throw new Error('El cuerpo no es un BRep válido.');
-  owners.release(analyzer);
+  if (context) {
+    if (!context.check(shape)) throw new Error('El cuerpo no es un BRep válido.');
+  } else {
+    const oc = getOC(), analyzer = owners.own(new oc.BRepCheck_Analyzer(shape.wrapped, true, false, false));
+    if (!analyzer.IsValid()) throw new Error('El cuerpo no es un BRep válido.');
+    owners.release(analyzer);
+  }
   const value = volume(shape, owners);
   if (!Number.isFinite(value) || value <= 1e-10) throw new Error('El cuerpo está vacío o tiene volumen no válido.');
   return value;
@@ -190,8 +225,18 @@ function validBRep(shape: Shape3D, owners: Owners): number {
 
 /** Solid traversal verifies cardinality/closure only; it never assigns or resolves identity. */
 export function validateBodyShape(shape: Shape3D): number {
+  return validateBodyShapeUsingContext(shape);
+}
+
+/** @internal Borrowed target; its caller must keep the complete batch alive until context disposal. */
+export function validateBodyShapeInContext(shape: Shape3D, context: NativeValidationContext): number {
+  return validateBodyShapeUsingContext(shape, context);
+}
+
+/** Standalone callers preserve their original fresh-analyzer route and all body gates. */
+function validateBodyShapeUsingContext(shape: Shape3D, context?: NativeValidationContext): number {
   return withOwners(owners => {
-    const oc = getOC(), value = validBRep(shape, owners), solids = shape.solids;
+    const oc = getOC(), value = validBRep(shape, owners, context), solids = ownedNativeTopology(shape, 'solid');
     solids.forEach(solid => owners.own(solid));
     if (solids.length !== 1) throw new Error('Cada entrada requiere exactamente un sólido cerrado; los resultados divididos no se admiten todavía.');
     const shells = owners.own(new oc.TopExp_Explorer(solids[0].wrapped,
@@ -213,10 +258,10 @@ export function validateBodyShape(shape: Shape3D): number {
   });
 }
 
-function validateAggregate(shape: Shape3D, count: number): void {
+function validateAggregate(shape: Shape3D, count: number, context?: NativeValidationContext): void {
   withOwners(owners => {
-    validBRep(shape, owners);
-    const solids = shape.solids;
+    validBRep(shape, owners, context);
+    const solids = ownedNativeTopology(shape, 'solid');
     solids.forEach(solid => owners.own(solid));
     if (solids.length !== count) throw new Error('El agregado no conserva todos los cuerpos del catálogo.');
   });
@@ -230,30 +275,39 @@ function changed(before: number, after: number): void {
 
 /** Owns an uncommitted detached state. No action mutates its source catalog. */
 export class NativeBodyTransaction {
-  private active = true;
+  #active = true;
   private readonly owners = new Owners();
-  readonly nextEntries: readonly NativeBodyEntry[];
+  readonly #entries: readonly NativeBodyEntry[];
+  get nextEntries(): readonly NativeBodyEntry[] { return this.#entries; }
   /** Borrowed until commit transfers it to the caller. */
   readonly aggregate: Shape3D;
 
   constructor(entries: readonly NativeBodyEntry[], aggregate: Shape3D, transfer: typeof OWNED_TRANSFER) {
     if (transfer !== OWNED_TRANSFER) throw new Error('Transferencia de cuerpos no autorizada.');
-    this.nextEntries = Object.freeze([...entries]); this.aggregate = aggregate;
+    this.#entries = Object.freeze([...entries]); this.aggregate = aggregate;
     entries.forEach(item => this.owners.own(item.shape)); this.owners.own(aggregate);
+  }
+
+  /** Read a genuine uncommitted output before a face or body is retained for history. */
+  static requireOutput(transaction: NativeBodyTransaction, ref: BodyReference): NativeBodyEntry {
+    if (!transaction.#active) throw Error('La propuesta de cuerpos ya se confirmó o descartó.');
+    const found = transaction.#entries.find(entry => entry.ref.bodyId === ref.bodyId && entry.ref.sourceFeatureId === ref.sourceFeatureId);
+    if (!found) throw Error('La operación no contiene el estado exacto del cuerpo solicitado.');
+    return found;
   }
 
   /** Caller owns both results separately and must explicitly retire its previous catalog/body. */
   commit(): { catalog: NativeBodyCatalog; aggregate: Shape3D } {
-    if (!this.active) throw new Error('La propuesta de cuerpos ya se confirmó o descartó.');
+    if (!this.#active) throw new Error('La propuesta de cuerpos ya se confirmó o descartó.');
     const catalog = NativeBodyCatalog.fromOwned(this.nextEntries, OWNED_TRANSFER);
-    this.active = false;
+    this.#active = false;
     this.nextEntries.forEach(item => this.owners.transfer(item.shape)); this.owners.transfer(this.aggregate);
     return { catalog, aggregate: this.aggregate };
   }
 
   dispose(): void {
-    if (!this.active) return;
-    this.active = false;
+    if (!this.#active) return;
+    this.#active = false;
     const errors = this.owners.releaseExcept();
     if (errors.length) throw new AggregateError(errors, 'Falló la liberación de la propuesta de cuerpos.');
   }
@@ -307,16 +361,25 @@ export class NativeBodyCatalog {
     try {
       const next = build(owners);
       if (next.length < 1 || next.length > MAX_BODIES) throw new Error('El catálogo admite entre 1 y 256 cuerpos activos.');
-      const identities = new Set<string>(), wrappers = new Set<Shape3D>();
-      for (const item of next) {
-        metadata(item);
-        if (identities.has(item.ref.bodyId) || wrappers.has(item.shape)) throw new Error('Las entradas del catálogo deben tener identidades y propietarios distintos.');
-        identities.add(item.ref.bodyId); wrappers.add(item.shape); validateBodyShape(item.shape);
-      }
-      // The aggregate has its own wrapper and cloned children. It is never an implicit union.
-      const children = next.map(item => owners.own(item.shape.clone()));
-      const aggregate = owners.own(makeCompound(children)).asShape3D();
-      validateAggregate(aggregate, next.length);
+      // All final inputs remain outer-owned until this synchronous checker closes.
+      const aggregate = withNativeValidationContext(next[0].shape, context => {
+        const identities = new Set<string>(), wrappers = new Set<Shape3D>();
+        for (const item of next) {
+          metadata(item);
+          if (identities.has(item.ref.bodyId) || wrappers.has(item.shape)) throw new Error('Las entradas del catálogo deben tener identidades y propietarios distintos.');
+          identities.add(item.ref.bodyId); wrappers.add(item.shape); validateBodyShapeInContext(item.shape, context);
+        }
+        // The aggregate has its own wrapper and cloned children. It is never an implicit union.
+        const children = next.map(item => owners.own(item.shape.clone()));
+        const oc = getOC(), builder = owners.own(new oc.TopoDS_Builder()), raw = owners.own(new oc.TopoDS_Compound());
+        builder.MakeCompound(raw);
+        for (const child of children) builder.Add(raw, child.wrapped);
+        // cast creates its own downcast wrapper; the raw compound and builder
+        // remain separately owned until staging has validated the aggregate.
+        const aggregate = owners.own(cast(raw)).asShape3D();
+        validateAggregate(aggregate, next.length, context);
+        return aggregate;
+      });
       const keep = new Set<NativeOwner>([...next.map(item => item.shape), aggregate]);
       const errors = owners.releaseExcept(keep);
       if (errors.length) throw new AggregateError(errors, 'Falló la liberación de candidatos intermedios.');

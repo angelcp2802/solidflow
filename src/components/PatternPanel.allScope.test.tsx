@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types';
-import { withFeaturePatternScope } from '../model/featurePatternCommands';
+import { withFeaturePatternAutoCapture, withFeaturePatternScope } from '../model/featurePatternCommands';
+import { RECIPE_EVALUATOR_REVISION } from '../model/featureRecipeAutoScope';
 import PatternPanel from './PatternPanel';
 import { bodyPatternHistoryChoices } from './BodyPatternPanel';
 
@@ -11,8 +12,12 @@ const a = { bodyId: 'all-ui-a', sourceFeatureId: 'all-ui-create' };
 const seed = { bodyId: a.bodyId, sourceFeatureId: 'all-ui-cut' };
 const kinds = ['linearPattern', 'circularPattern', 'mirror'] as const;
 const sources: Feature[] = [
+  { id: 'profile-a', type: 'sketch', name: 'Croquis original de la base', suppressed: false, plane: 'XY', offset: 0,
+    profile: { kind: 'rectangle', center: [0, 0], width: 80, height: 20 } },
   { id: a.sourceFeatureId, type: 'extrude', name: 'Base original', suppressed: false, sketchId: 'profile-a', depth: 4, symmetric: false,
     bodyOperation: { mode: 'new', bodyId: a.bodyId } },
+  { id: 'profile-cut', type: 'sketch', name: 'Croquis original del corte', suppressed: false, plane: 'XY', offset: 0,
+    profile: { kind: 'circle', center: [-5, 0], radius: 1 } },
   { id: seed.sourceFeatureId, type: 'cut', name: 'Corte histórico exacto', suppressed: false, sketchId: 'profile-cut', depth: 1, symmetric: false, bodyScope: [a] },
 ];
 function pattern(kind: RepetitionFeature['type']): RepetitionFeature {
@@ -25,13 +30,26 @@ function pattern(kind: RepetitionFeature['type']): RepetitionFeature {
       : { ...common, type: kind, support: { kind: 'principal', plane: 'YZ' }, mergeBodies: false };
 }
 const unexpectedEdit = () => { throw new Error('SSR must not update scope, refs or derived targets'); };
-function render(feature: RepetitionFeature, bodies: { ref: BodyReference; name: string }[] = [{ ref: seed, name: 'Cuerpo actual' }], loading = false): string {
+function render(feature: RepetitionFeature, bodies: { ref: BodyReference; name: string }[] = [{ ref: seed, name: 'Cuerpo actual' }], loading = false, autoScope?: { available: boolean; pending: boolean }): string {
   return renderToStaticMarkup(<PatternPanel feature={feature} features={sources} planes={[]} onChange={unexpectedEdit}
     onPickFace={unexpectedEdit} pickingFace={false} canPickFace={false} onSourceKindChange={unexpectedEdit}
+    autoScope={autoScope && { ...autoScope, onCapture: unexpectedEdit }}
     bodyEditor={{ bodies, existing: true, loading, picking: false, onSelection: unexpectedEdit, onPicking: unexpectedEdit }} />);
 }
 
 describe('rendered dynamic ALL intent', () => {
+  it('shows exact saved AUTO members separately from the live catalogue and exposes explicit recapture', () => {
+    const base = pattern('linearPattern');
+    const feature = withFeaturePatternAutoCapture(base, { kind: 'feature-recipe-auto-scope', patternId: base.id,
+      sourceFeaturesSignature: '0'.repeat(64), evaluatorRevision: RECIPE_EVALUATOR_REVISION,
+      scope: { mode: 'auto', capturedBodyIds: [a.bodyId, 'missing-owner'], captureFingerprint: 'auto-scope-v1:' + '1'.repeat(64), follow: 'sameIdentityAtPatternInput' } });
+    const html = render(feature, [{ ref: seed, name: 'Cuerpo capturado' }, { ref: { bodyId: 'remote', sourceFeatureId: 'another-creator' }, name: 'Cuerpo no capturado' }], false,
+      { available: true, pending: false });
+    expect(html).toContain('<option value="auto" selected="">Detectar cuerpos automáticamente</option>');
+    expect(html).toContain('<ul aria-label="Cuerpos detectados para la repetición"><li>Cuerpo capturado</li><li>Cuerpo detectado no disponible</li></ul>');
+    expect(html).toContain('Volver a detectar cuerpos');
+    expect(html).not.toContain('Cuerpo no capturado');
+  });
   it.each(kinds)('presents %s ALL as dynamic intent and keeps exact historical source selection separate', kind => {
     const feature = pattern(kind), before = structuredClone(feature), html = render(feature);
     expect(html).toContain('aria-label="Alcance de los cuerpos de la repetición"');
@@ -44,7 +62,9 @@ describe('rendered dynamic ALL intent', () => {
     expect(html).not.toContain('Seleccionar destinos en la vista');
     expect(html).not.toContain('Destinos de esta geometría');
     expect(html).not.toContain('value="auto"');
-    expect(html).toContain('salientes con todos los cuerpos siguen pendientes');
+    expect(html).toContain('Admite cortes con croquis intrínsecos');
+    expect(html).toContain('Para salientes, usa un perfil rectangular o circular en un plano principal y una profundidad fija');
+    expect(html).toContain('Cada copia del saliente debe tocar un solo cuerpo');
     expect(feature).toEqual(before);
   });
 

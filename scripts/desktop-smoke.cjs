@@ -3,7 +3,50 @@
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 const ROOT = path.resolve(__dirname, '..');
+
+// Runs against the observed production worker asset in an independent dedicated
+// worker. No fake dispatcher, WASM response, UI document or capability is injected.
+function workerQueueProbe(url) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(url, { type: 'module' }), channel = new MessageChannel(), replies = [], events = [];
+    const finish = (error, result) => {
+      clearTimeout(timer); channel.port1.close(); channel.port2.close(); worker.terminate();
+      if (error) reject(error); else resolve(result);
+    };
+    const timer = setTimeout(() => finish(Error('Production worker queue did not recover from malformed input.')), 15000);
+    worker.onerror = event => finish(Error('Production probe worker failed: ' + event.message));
+    worker.onmessage = event => {
+      replies.push(event.data);
+      events.push({ id: event.data?.id, origin: event.origin, sourceIsNull: event.source === null, ports: event.ports.length, isTrusted: event.isTrusted });
+      if (replies.length !== 4) return;
+      try {
+        if (replies.some((reply, i) => reply?.id !== 101 + i) || replies.slice(0, 3).some(reply => reply.ok !== false || typeof reply.error !== 'string' || !reply.error)) throw Error('Malformed inputs did not produce ordered correlated failures.');
+        const last = replies[3], value = last.value;
+        if (!last.ok || !value || Math.abs(value.volume - 24) > 1e-6 || value.featureErrors.length || value.warnings.length
+          || !value.vertices.length || !value.triangles.length || ![...value.vertices, ...value.normals].every(Number.isFinite)) throw Error('The worker did not rebuild the original 2 by 3 by 4 prism.');
+        for (const [name, wanted] of [['min', [0, 0, 0]], ['max', [2, 3, 4]]]) if (value.bounds[name].length !== 3 || value.bounds[name].some((v, i) => !Number.isFinite(v) || Math.abs(v - wanted[i]) > 1e-6)) throw Error('Independent native prism bounds failed.');
+        if (events.some(item => !item.isTrusted || item.origin !== '' || !item.sourceIsNull || item.ports !== 0)) throw Error('Unexpected dedicated worker response channel.');
+        finish(null, { status: 'PASS', malformedWithoutId: 'no reply', portRejectionControl: { requestId: 100, followingBarrierId: 101, observedReplyIds: replies.map(reply => reply.id) },
+          correlatedErrors: replies.slice(0, 3).map(reply => ({ id: reply.id, error: reply.error })), nativePrism: { volume: value.volume, bounds: value.bounds }, events });
+      } catch (error) { finish(error); }
+    };
+    try {
+      // This real transferred channel is outside the command protocol. The next
+      // legitimate reply is an ordered barrier, not a timeout-based silence test.
+      worker.postMessage({ id: 100, action: 'init' }, [channel.port2]);
+      worker.postMessage(null);
+      worker.postMessage({ id: 101, action: 'unknown-operation' });
+      worker.postMessage({ id: 102, action: 'build' });
+      worker.postMessage({ id: 103, action: 'build', features: null });
+      worker.postMessage({ id: 104, action: 'build', features: [
+      { id: 'profile', name: 'Original rectangle', type: 'sketch', plane: 'XY', offset: 0, suppressed: false, profile: { kind: 'rectangle', center: [1, 1.5], width: 2, height: 3 } },
+      { id: 'solid', name: 'Original prism', type: 'extrude', sketchId: 'profile', depth: 4, symmetric: false, suppressed: false },
+      ] });
+    } catch (error) { finish(error); }
+  });
+}
 
 async function launch() {
   await fs.access(path.join(ROOT, 'dist/index.html'));
@@ -16,24 +59,17 @@ async function launch() {
   // Permit that software renderer for this smoke test while keeping sandboxing.
   const electronArgs = process.platform === 'linux' && environment.CI === 'true'
     ? ['--ignore-gpu-blocklist', __filename] : [__filename];
-  let child;
-  let timer;
-  try {
-    const exitCode = await new Promise((resolve, reject) => {
-      child = spawn(require('electron'), electronArgs, { cwd: ROOT, env: environment, stdio: 'inherit', windowsHide: true });
-      child.once('error', reject);
-      child.once('exit', (code) => resolve(code ?? 1));
-      timer = setTimeout(() => { child.kill(); reject(new Error('Electron no terminó en 45 segundos.')); }, 45_000);
-    });
-    process.exitCode = exitCode;
-  } finally {
-    clearTimeout(timer);
-    if (child && child.exitCode === null && !child.killed) child.kill();
-    if (!path.resolve(temporary).startsWith(path.resolve(os.tmpdir()) + path.sep) || !path.basename(temporary).startsWith('solidflow-runtime-check-')) {
-      throw new Error('Ruta temporal inesperada; no se elimina.');
-    }
-    await fs.rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-  }
+  const { runSmokeLaunch } = require('./desktop-smoke-launch.cjs');
+  await runSmokeLaunch({
+    spawn: () => spawn(require('electron'), electronArgs, { cwd: ROOT, env: environment, stdio: 'inherit', windowsHide: true }),
+    cleanup: async () => {
+      if (!path.resolve(temporary).startsWith(path.resolve(os.tmpdir()) + path.sep) || !path.basename(temporary).startsWith('solidflow-runtime-check-')) {
+        throw new Error('Ruta temporal inesperada; no se elimina.');
+      }
+      await fs.rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    },
+  });
+  process.exitCode = 0;
 }
 
 function runInElectron() {
@@ -85,7 +121,13 @@ function runInElectron() {
         })`);
         const wasmLoaded = protocolResponses.some(asset => asset.url.endsWith('.wasm') && asset.status === 200);
         const valid = state.url === 'solidflow://app/index.html' && state.status.includes('Listo') && state.status.includes('Sólido') && state.canvasCount > 0 && state.bridge === 'function' && wasmLoaded && !consoleErrors.length && !failedRequests.length;
-        finish(valid ? 0 : 1, { ...state, wasmLoaded });
+        let workerQueue;
+        if (valid) {
+          const asset = protocolResponses.find(item => /^solidflow:\/\/app\/assets\/kernel\.worker-[\w-]+\.js$/.test(item.url) && item.status === 200);
+          if (!asset) throw Error('No observed production worker asset for the queue regression.');
+          workerQueue = await window.webContents.executeJavaScript('(' + workerQueueProbe.toString() + ')(' + encodeJavaScriptString(asset.url) + ')');
+        }
+        finish(valid && workerQueue?.status === 'PASS' ? 0 : 1, { ...state, wasmLoaded, workerQueue });
       } catch (error) { finish(1, error.message); }
     });
   });
@@ -129,4 +171,7 @@ function runInElectron() {
 }
 
 if (process.versions.electron) runInElectron();
-else launch().catch(error => { console.error(error.message); process.exitCode = 1; });
+else launch().catch(error => {
+  console.error(error);
+  process.exitCode = require('./desktop-smoke-launch.cjs').launchFailureExitCode(error);
+});

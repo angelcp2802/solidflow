@@ -10,6 +10,9 @@ import { bodyBoolean, NativeBodyCatalog, validateBodyShape } from './kernel.bodi
 import { CadEngine } from './kernel.engine';
 import { withNativeOwners } from './kernel.native-ownership';
 import * as recipeInstance from './kernel.recipe-instance';
+import * as recipeEvaluation from './kernel.feature-recipes';
+import * as faceHistory from './kernel.recipe-face-history';
+import { NativeBodyTransaction } from './kernel.bodies';
 import type { BodyReference, CadResult, Feature, RepetitionFeature, Vec3 } from './kernel.types';
 
 // Original analytical mm fixtures for explicitly fixed external XY=0 limits.
@@ -254,4 +257,196 @@ it('rejects a real 90-degree circular instance whose ray is parallel to the fixe
   metrics(engine, a, 64, 136, row.min, row.max);
   metrics(engine, source, 64 - 3 * Math.PI / 2, 136 + 13 * Math.PI / 2, sourceMin, sourceMax);
   identity(result, a, a.sourceFeatureId); identity(result, source, 'create-S');
+}), 60_000);
+
+it.each([
+  { row: placements[0], x: 3, height: 3, positiveRay: true },
+  { row: placements[1], x: 0, height: 1, positiveRay: false },
+  { row: placements[2], x: 0, height: 9, positiveRay: false },
+])('rebuilds a translated world limit for the saved $row.kind recipe', ({ row, x, height, positiveRay }) => fixture(engine => {
+  const before = prefix(row);
+  const seed = before.features.find(feature => feature.id === source.sourceFeatureId);
+  if (seed?.type !== 'cut' || seed.endCondition?.kind !== 'upToSurface') throw Error('Original cut seed missing.');
+  const value = updateFeature(before, seed.id, { ...seed, endCondition: { ...seed.endCondition,
+    offset: { construction: 'translation', translationWorldMm: [11, -7, 1] } } });
+  const saved = parseDocument(serializeDocument(addFeature(value, pattern(row.kind, a.sourceFeatureId))));
+  healthy(engine, saved);
+  // Linear, half-turn and mirror start at z=-2, +2 and +10 respectively. The limit stays at z=+1.
+  metrics(engine, output(), row.baseVolume - height * Math.PI / 4, row.baseArea + (height + .5) * Math.PI, row.min, row.max);
+  metrics(engine, source, 64 - 7 * Math.PI / 4, 136 + 7.5 * Math.PI, sourceMin, sourceMax);
+  probe(engine, output(), [x, 0, .5], !positiveRay);
+  probe(engine, output(), [x, 0, 1.5], positiveRay);
+}), 60_000);
+
+it('rebuilds from the external historical face of the exact saved owner and rejects a coincident owner', () => fixture(engine => {
+  // Original limit body sits away from the cut at x=10..12. Its top at z=1 extends as an infinite plane.
+  const seedLimit = { bodyId: 'face-limit', sourceFeatureId: 'limit-create' };
+  const seedDecoy = { bodyId: 'face-decoy', sourceFeatureId: 'decoy-create' };
+  const limit = { ...seedLimit, sourceFeatureId: 'shared-cut' }, decoy = { ...seedDecoy, sourceFeatureId: 'shared-cut' };
+  const limitMin: Vec3 = [10, -2, -3], limitMax: Vec3 = [12, 2, 1];
+  const limitBodies: Feature[] = [...box(seedLimit.sourceFeatureId, limit.bodyId, limitMin, limitMax), ...box(seedDecoy.sourceFeatureId, decoy.bodyId, limitMin, limitMax),
+    { id: 'shared-profile', type: 'sketch', name: 'Shared recess', plane: 'XY', offset: 1, suppressed: false,
+      profile: { kind: 'circle', radius: .25, center: [11, 0] } },
+    { id: 'shared-cut', name: 'Shared cut', type: 'cut', bodyScope: [seedLimit, seedDecoy], sketchId: 'shared-profile', depth: -1, symmetric: false, suppressed: false }];
+  const observed = healthy(engine, document(limitBodies));
+  const matches = observed.bodies!.find(body => body.ref.bodyId === limit.bodyId)!.faces.filter(face => face.frame?.normal[2] === 1 && Math.abs(face.frame.origin[2] - 1) < 1e-6);
+  expect(matches).toHaveLength(1);
+  const before = document([...limitBodies, ...prefix().features]);
+  const seed = before.features.find(feature => feature.id === source.sourceFeatureId);
+  if (seed?.type !== 'cut') throw Error('Original cut missing.');
+  const seeded = updateFeature(before, seed.id, { ...seed, endCondition: { kind: 'upToSurface', target: { kind: 'face', face: matches[0].ref } } });
+  const p = pattern('linearPattern', a.sourceFeatureId);
+  if (p.featurePattern?.mode !== 'regenerate') throw Error('Original pattern missing.');
+  p.featurePattern.referencePolicies[0].owner = { ...limit };
+  const saved = parseDocument(serializeDocument(addFeature(seeded, p)));
+  const result = healthy(engine, saved);
+  expect(result.bodies).toHaveLength(4);
+  metrics(engine, output(), 64 - 3 * Math.PI / 4, 136 + 3.5 * Math.PI, placements[0].min, placements[0].max);
+  metrics(engine, source, 64 - 7 * Math.PI / 4, 136 + 7.5 * Math.PI, sourceMin, sourceMax);
+  metrics(engine, limit, 32 - Math.PI / 16, 64 + Math.PI / 2, limitMin, limitMax);
+  metrics(engine, decoy, 32 - Math.PI / 16, 64 + Math.PI / 2, limitMin, limitMax);
+  probe(engine, output(), [3, 0, .5], false);
+  probe(engine, output(), [3, 0, 1.5], true);
+  const stage = recipeEvaluation.stageFeatureRecipeEvaluation;
+  const replaceEpoch = vi.spyOn(recipeEvaluation, 'stageFeatureRecipeEvaluation').mockImplementation((evaluation, catalog, update, current) =>
+    stage(evaluation, catalog, update, { ...current, recipeFaceEpoch: {} }));
+  try {
+    const stale = engine.build(saved.features);
+    expect(stale.featureErrors.map(error => error.id)).toEqual([p.id]);
+    expect(stale.featureErrors[0].message).toMatch(/epoch/);
+    expect(stale.bodies!.find(body => body.ref.bodyId === a.bodyId)!.ref).toEqual(a);
+  } finally { replaceEpoch.mockRestore(); }
+  // Fail registration of each copied resource before and after the arena records it.
+  const captureFaces = faceHistory.captureRecipeOwnerFaces, originalSet = Map.prototype.set;
+  for (const resource of ['shape', 'lease'] as const) for (const registered of [false, true]) {
+    let pendingResource: object | undefined, injections = 0, bodyDeletes = 0, faceDeletes = 0;
+    const capture = vi.spyOn(faceHistory, 'captureRecipeOwnerFaces').mockImplementation((...args) => {
+      const result = captureFaces(...args);
+      const entry = NativeBodyTransaction.requireOutput(args[0], args[2]);
+      const face = faceHistory.readHistoricalRecipeFace(result.lease, args[1], limit, entry.lineage, result.shape, matches[0].ref);
+      const deleteShape = result.shape.delete.bind(result.shape), deleteFace = face.delete.bind(face);
+      result.shape.delete = () => { bodyDeletes++; deleteShape(); };
+      face.delete = () => { faceDeletes++; deleteFace(); };
+      pendingResource = result[resource];
+      return result;
+    });
+    const instrumentSet = vi.spyOn(Map.prototype, 'set').mockImplementation(function(this: Map<unknown, unknown>, key, value) {
+      if (pendingResource && key === pendingResource) {
+        pendingResource = undefined; injections++;
+        if (registered) originalSet.call(this, key, value);
+        throw Error('Original ownership registration test');
+      }
+      return originalSet.call(this, key, value);
+    });
+    try {
+      expect(() => engine.build(saved.features)).toThrow(/Historical face ownership registration failed/);
+    } finally { instrumentSet.mockRestore(); capture.mockRestore(); }
+    expect([injections, bodyDeletes, faceDeletes]).toEqual([1, 1, 1]);
+  }
+  healthy(engine, saved);
+  p.featurePattern.referencePolicies[0].owner = { ...limit, bodyId: 'absent-owner' };
+  expect(() => addFeature(seeded, p)).toThrow(/featurePattern\.referencePolicies\[0\]\.owner\.bodyId/);
+  // Both bodies are valid outputs of the SAME operation, occupy the SAME space, and have identical cuts.
+  p.featurePattern.referencePolicies[0].owner = { ...decoy };
+  const forged = parseDocument(serializeDocument(addFeature(seeded, p)));
+  const invalid = engine.build(forged.features);
+  expect(invalid.featureErrors.map(error => error.id)).toEqual([p.id]);
+  expect(invalid.bodies!.find(body => body.ref.bodyId === a.bodyId)!.ref).toEqual(a);
+}), 60_000);
+
+it.each(placements)('places an oriented nested datum for $kind after reading the actual source prefix', row => fixture(engine => {
+  const original = prefix(row);
+  const datumA: Feature = { id: 'datum-a', type: 'plane', name: 'Original reversed XY at 2', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 2 };
+  const datumB: Feature = { id: 'datum-b', type: 'plane', name: 'Original negative Z at 1', suppressed: false,
+    support: { kind: 'plane', planeId: datumA.id }, reversed: false, offset: 1 };
+  const seed = original.features.find(item => item.id === source.sourceFeatureId);
+  if (seed?.type !== 'cut') throw Error('Original cut missing');
+  const definition = updateFeature(document([datumA, datumB, ...original.features]), seed.id, { ...seed,
+    endCondition: { kind: 'upToSurface', target: { kind: 'plane', planeId: datumB.id }, offset: { construction: 'normal', signedDistanceMm: 1 } } });
+  for (const placement of ['world', 'transform'] as const) {
+    const patternFeature = pattern(row.kind, a.sourceFeatureId);
+    if (patternFeature.featurePattern?.mode !== 'regenerate') throw Error('Missing pattern');
+    patternFeature.featurePattern.referencePolicies[0].placement = placement;
+    const doc = parseDocument(serializeDocument(addFeature(definition, patternFeature)));
+    healthy(engine, doc);
+    // Datum B is at z=1, with -Z normal. Its one-mm normal offset puts the seed end at z=0.
+    // In world coordinates the cut length is 2, 2, or 10 mm. Transforming both end and start preserves 6 mm.
+    const depth = placement === 'world' ? row.depth : 6;
+    metrics(engine, output(), row.baseVolume - depth * Math.PI / 4, row.baseArea + (depth + .5) * Math.PI, row.min, row.max);
+    metrics(engine, source, 64 - 6 * Math.PI / 4, 136 + 6.5 * Math.PI, sourceMin, sourceMax);
+  }
+}));
+
+it.each(placements.slice(1))('translates the placed datum in literal world XYZ after $kind', row => fixture(engine => {
+  const datum: Feature = { id: 'translation-limit', type: 'plane', name: 'Original reversed XY at 1', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 1 };
+  const original = prefix(row), seed = original.features.find(item => item.id === source.sourceFeatureId);
+  if (seed?.type !== 'cut') throw Error('Original cut missing');
+  const definition = updateFeature(document([datum, ...original.features]), seed.id, { ...seed,
+    endCondition: { kind: 'upToSurface', target: { kind: 'plane', planeId: datum.id },
+      offset: { construction: 'translation', translationWorldMm: [.25, -.75, 2] } } });
+  const p = pattern(row.kind, a.sourceFeatureId);
+  if (p.featurePattern?.mode !== 'regenerate') throw Error('Original recipe missing');
+  p.featurePattern.referencePolicies[0].placement = 'transform';
+  healthy(engine, parseDocument(serializeDocument(addFeature(definition, p))));
+  // Half-turn: start +2, placed surface -5, world translation to -3.
+  // Mirror: start +10, placed surface +3, world translation to +5.
+  // Transforming the +2 mm displacement together with its support would instead cut 9 mm.
+  metrics(engine, output(), row.baseVolume - 5 * Math.PI / 4, row.baseArea + 5.5 * Math.PI, row.min, row.max);
+  metrics(engine, source, 64 - 9 * Math.PI / 4, 136 + 9.5 * Math.PI, sourceMin, sourceMax);
+  const endZ = row.kind === 'mirror' ? 5 : -3;
+  probe(engine, output(), [0, 0, endZ + .5], false);
+  probe(engine, output(), [0, 0, endZ - .5], true);
+}));
+
+it('repairs an ordinary child face limit after an edit moves its blind pocket floor', () => fixture(engine => {
+  // Original millimetre fixture: 12 x 12 x 8 stock, open 10 x 10 pocket from below,
+  // 1 x 1 child from above. The stock edges leave a 1 mm rim around the pocket.
+  const stock = { bodyId: 'stock', sourceFeatureId: 'base' };
+  const pocket = { ...stock, sourceFeatureId: 'pocket' }, child = { ...stock, sourceFeatureId: 'child' };
+  const min: Vec3 = [-1, -1, 0], max: Vec3 = [11, 11, 8];
+  const base = document([...box('base', stock.bodyId, min, max),
+    { id: 'pocket-profile', type: 'sketch', name: 'Perfil de cajera', suppressed: false,
+      plane: 'XY', offset: 0, profile: { kind: 'rectangle', center: [5, 5], width: 10, height: 10 } },
+    { id: pocket.sourceFeatureId, type: 'cut', name: 'Cajera inferior', suppressed: false,
+      sketchId: 'pocket-profile', depth: 4, symmetric: false, bodyScope: [stock] }]);
+  function selectedFloor(result: CadResult, height: number) {
+    const faces = result.bodies!.find(body => body.ref.bodyId === stock.bodyId)!.faces.filter(face =>
+      face.frame && face.frame.normal[2] < -.99999 && Math.abs(face.frame.origin[2] - height) < 1e-6);
+    expect(faces).toHaveLength(1);
+    return faces[0].ref;
+  }
+  const firstFloor = selectedFloor(healthy(engine, base), 4);
+  const initial = document([...base.features,
+    { id: 'child-profile', type: 'sketch', name: 'Perfil superior', suppressed: false,
+      plane: 'XY', offset: 8, profile: { kind: 'rectangle', center: [4.5, 4.5], width: 1, height: 1 } },
+    { id: child.sourceFeatureId, type: 'cut', name: 'Paso superior', suppressed: false,
+      sketchId: 'child-profile', depth: -1, symmetric: false, bodyScope: [pocket],
+      endCondition: { kind: 'upToSurface', target: { kind: 'face', face: firstFloor } } }]);
+  healthy(engine, parseDocument(serializeDocument(initial)));
+  metrics(engine, child, 748, 846, min, max);
+  const edited = updateFeature(initial, 'pocket', { depth: 5 });
+  const stale = engine.build(parseDocument(serializeDocument(edited)).features);
+  expect(stale.featureErrors.map(error => error.id)).toEqual(['child']);
+  expect(stale.featureErrors[0].message).toContain('Cajera inferior');
+  metrics(engine, pocket, 652, 872, min, max);
+  const nextFloor = selectedFloor(stale, 5);
+  expect(nextFloor.sourceFeatureId).toBe(firstFloor.sourceFeatureId);
+  expect(nextFloor.key).not.toBe(firstFloor.key);
+  const second = document(edited.features.map(feature => {
+    if (feature.id !== 'child' || feature.type !== 'cut') return feature;
+    const { endCondition, ...rest } = feature;
+    return { ...rest, depth: 1, secondDirection: { enabled: true, depth: 1, endCondition } };
+  }));
+  const secondFailure = engine.build(second.features);
+  expect(secondFailure.featureErrors.map(error => error.id)).toEqual(['child']);
+  expect(secondFailure.featureErrors[0].message).toContain('dirección 2');
+  expect(secondFailure.featureErrors[0].message).toContain('Cajera inferior');
+
+  const repaired = updateFeature(edited, 'child', { endCondition: { kind: 'upToSurface', target: { kind: 'face', face: nextFloor } } });
+  healthy(engine, parseDocument(serializeDocument(repaired)));
+  metrics(engine, child, 649, 882, min, max);
+  probe(engine, child, [4.5, 4.5, 6], false);
+  probe(engine, child, [6.5, 4.5, 6], true);
 }), 60_000);

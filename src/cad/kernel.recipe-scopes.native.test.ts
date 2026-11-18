@@ -16,7 +16,7 @@ import { evaluateFeatureRecipes, recipeEvaluationEventAffectedBodyIds, stageFeat
 
 // Original analytical mm fixtures for a native ALL component. No saved ALL/AUTO
 // grammar, UI interaction or external-application fidelity is asserted here.
-// ALL positive applicability remains explicitly gated; selected additions stay real.
+// Additive ALL admits only the initial intrinsic Blind subset; selected additions stay real.
 const metricTolerance = 1e-5, coordinateTolerance = 1e-6;
 type Row = { kind: RegenerationRequest['patternKind']; transform: RecipeInstanceTransform; min: Vec3; max: Vec3; center: Vec3 };
 const rows: Row[] = [
@@ -311,14 +311,23 @@ function positiveFixture(owners: Fixtures): Setup {
     { ref: c, shape: box(owners, [50, 0, 0], [60, 10, 4]) }]);
   return { features, catalog: current, request: request(features, [ref], snapshot(current)), historicalStates: new Map([[exactStateKey(ref), state(ref, source)]]) };
 }
-it('diagnoses pending ALL positive applicability before tools while retaining selected positive construction', () => fixture(owners => {
-  const setup = positiveFixture(owners), failure = expectPreflightReject(setup, owners, /positive|applicab|ALL/i);
-  expect(failure).toBeInstanceOf(RecipeClosureError);
-  expect((failure as RecipeClosureError).diagnostics.map(item => item.code)).toContain('ALL_POSITIVE_SCOPE_PENDING');
+it('applies intrinsic Blind ALL to one owner while retaining selected positive construction', () => fixture(owners => {
+  const setup = positiveFixture(owners), all = owners.evaluation(evaluateFeatureRecipes(setup));
+  expect(all.replacements.map(item => item.ref.bodyId)).toEqual(['A']);
+  metrics(all.replacements[0].shape, 408, 376, [20, 0, 0], [30, 10, 6], owners);
+  expect(recipeEvaluationEventAffectedBodyIds(all)).toEqual(['A']);
   setup.request.scope = { mode: 'selected', targets: [a] }; setup.request.targetSnapshot = [a]; setup.request.bindings[0].targets = ['A'];
   const evaluated = owners.evaluation(evaluateFeatureRecipes(setup));
   metrics(evaluated.replacements[0].shape, 408, 376, [20, 0, 0], [30, 10, 6], owners);
   const next = commit(evaluated, setup, owners); metrics(next.resolve(c).shape, 400, 360, [50, 0, 0], [60, 10, 4], owners);
+}), 60_000);
+it('keeps non-Blind additive ALL pending before target copies or tools', () => fixture(owners => {
+  const setup = positiveFixture(owners), feature = setup.features.find(item => item.id === 'boss');
+  if (!feature || feature.type !== 'extrude') throw Error('Original positive seed missing');
+  feature.endCondition = { kind: 'throughAll', bothDirections: false, baseFeatureId: 'create-source' };
+  const failure = expectPreflightReject(setup, owners, /positive|applicab|ALL/i);
+  expect(failure).toBeInstanceOf(RecipeClosureError);
+  expect((failure as RecipeClosureError).diagnostics.map(item => item.code)).toContain('ALL_POSITIVE_SCOPE_PENDING');
 }), 60_000);
 
 function cancellationFixture(owners: Fixtures): Setup {

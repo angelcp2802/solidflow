@@ -1,6 +1,7 @@
 import type { Feature, SketchFeature, SweepPathSegment } from '../cad/kernel.types'
 import type { SketchPoint } from '../sketch/types'
 import { featureBodyReferences } from './bodyReferences'
+import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
 
 export type FeatureWithBase = Extract<Feature, { baseFeatureId: string }>
 
@@ -15,6 +16,7 @@ export function featureSketchIds(feature: Feature): string[] {
     case 'extrude':
     case 'cut':
     case 'revolve':
+    case 'revolvedCut':
       return [feature.sketchId]
     case 'sweep':
       return [feature.profileSketchId, feature.pathSketchId]
@@ -29,6 +31,11 @@ export function featureSketchIds(feature: Feature): string[] {
 export function featureDependencyIds(feature: Feature): string[] {
   const ids = featureSketchIds(feature)
   ids.push(...featureBodyReferences(feature).map(reference => reference.sourceFeatureId))
+  if (feature.type === 'revolve' || feature.type === 'revolvedCut') {
+    if (feature.axis?.kind === 'external-sketch-line') ids.push(feature.axis.sketchId)
+    if (feature.axis?.kind === 'linear-edge') ids.push(feature.axis.edge.sourceFeatureId)
+  }
+  ids.push(...featureRevolutionAxisBodyReferences(feature).map(reference => reference.sourceFeatureId))
   if (hasBaseFeature(feature)) ids.push(feature.baseFeatureId)
   if (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') {
     if (feature.source.mode === 'features') ids.push(...feature.source.featureIds)
@@ -38,12 +45,14 @@ export function featureDependencyIds(feature: Feature): string[] {
     if (feature.support.kind === 'plane') ids.push(feature.support.planeId)
     if (feature.support.kind === 'face') ids.push(feature.support.face.sourceFeatureId)
   }
-  if ((feature.type === 'extrude' || feature.type === 'cut') && feature.endCondition) {
-    const endCondition = feature.endCondition
-    if (endCondition.kind === 'upToSurface') {
-      if (endCondition.target.kind === 'plane') ids.push(endCondition.target.planeId)
-      if (endCondition.target.kind === 'face') ids.push(endCondition.target.face.sourceFeatureId)
-    } else ids.push(endCondition.baseFeatureId)
+  if (feature.type === 'extrude' || feature.type === 'cut') {
+    for (const endCondition of [feature.endCondition, feature.secondDirection?.endCondition]) {
+      if (!endCondition) continue
+      if (endCondition.kind === 'upToSurface') {
+        if (endCondition.target.kind === 'plane') ids.push(endCondition.target.planeId)
+        if (endCondition.target.kind === 'face') ids.push(endCondition.target.face.sourceFeatureId)
+      } else ids.push(endCondition.baseFeatureId)
+    }
   }
   return [...new Set(ids)]
 }

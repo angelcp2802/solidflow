@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "original-import-parent",
+  "revision": "r1",
+  "name": "Original import parent",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [],
+  "occurrences": [],
+  "mates": []
+}

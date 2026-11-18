@@ -13,10 +13,12 @@ import { NativeCleanupError, withNativeOwners, type NativeOwners } from './kerne
 import { patternPlan } from './kernel.patterns';
 import { exactStateKey, extractRecipeClosure, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration,
   transformedExtrusionFrame, type RegenerationRequest } from '../model/featureRecipes';
+import { withFeaturePatternMode, withTransformedSketchSupports } from '../model/featurePatternCommands';
 import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation } from './kernel.feature-recipes';
 import { createSourceSketchSolveRegistry, type SourceSketchSupportContext } from './kernel.sketch-solves';
 import * as bodies from './kernel.bodies';
 import * as profiles from './kernel.profiles';
+import * as recipeEvaluation from './kernel.feature-recipes';
 import * as entities from './kernel.recipe-entities';
 import * as recipeBridge from './kernel.recipe-instance';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
@@ -679,4 +681,176 @@ it('keeps a later real entity tail split atomic after an earlier A change and B 
     for (const id of ['S', 'A', 'B']) expect(() => catalog(engine).resolve(output(id))).toThrow();
     expect(() => engine.export('step', saved.features)).toThrow();
   } finally { bridge.mockRestore(); }
+}), 60_000);
+
+it.each(rows.flatMap(row => [false, true].map(primitive => ({ ...row, primitive }))))('isolated transformed associated sketch in $kind (primitive=$primitive)', row => usingEngine((engine, owners) => {
+  const value = prefix(row), sketch = value.features.find(feature => feature.id === 'entity-sketch') as SketchFeature;
+  const parent: Feature = { id: 'parent-datum', type: 'plane', name: 'Original reversed z2', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 2 };
+  const child: Feature = { ...parent, id: 'child-datum', name: 'Original positive z1', support: { kind: 'plane', planeId: parent.id }, offset: 1 };
+  value.features.unshift(parent, child);
+  if (row.primitive) sketch.profile = { kind: 'circle', center: [7.5, 5], radius: .5 };
+  sketch.support = { kind: 'plane', planeId: child.id }; sketch.offset = -1; sketch.plane = 'XZ';
+  const saved = parseDocument(serializeDocument(addFeature(value, pattern(row.kind))));
+  const evaluate = recipeEvaluation.evaluateFeatureRecipes;
+  const observations: { volume: number; area: number; count: number; measured?: number; probes: number[] }[] = [];
+  const solver = vi.spyOn(profiles, 'solveEntityProfileResult');
+  // Observe the real native build just before its evaluator. The private prototype request
+  // shares the actual source solve registry, native histories and catalog. It is disposed
+  // without staging. The saved, undeclared request below must still fail normally.
+  const observe = vi.spyOn(recipeEvaluation, 'evaluateFeatureRecipes').mockImplementation(input => {
+    const policies = [parent.id, child.id, sketch.id].map(featureId => ({ featureId, path: 'support', placement: 'transform' as const }));
+    for (const [id, code] of [[parent.id, 'ASSOCIATIVE_PLANE_PENDING'], [sketch.id, 'ASSOCIATIVE_SKETCH_PENDING']]) {
+      const mixed = policies.map(policy => policy.featureId === id ? { ...policy, placement: 'world' as const } : policy);
+      const closure = extractRecipeClosure(input.features, { ...input.request, referencePolicies: mixed });
+      if (!closure.diagnostics.some(item => item.code === code && item.featureId === id)) throw Error('Mixed or world support became eligible');
+    }
+    const prototype = { ...input, request: { ...input.request, referencePolicies: policies } };
+    const proposal = evaluate(prototype);
+    try {
+      const shape = proposal.replacements[0].shape;
+      const probes = [row.cut, [21, row.min[1] + 1, 6] as Vec3].map(center => {
+        const cube = owners.own(makeBox(center.map(value => value - .1) as Vec3, center.map(value => value + .1) as Vec3));
+        const common = owners.own(bodyBoolean('common', shape, cube));
+        return owners.own(measureShapeVolumeProperties(common)).volume;
+      });
+      observations.push({ probes, volume: owners.own(measureShapeVolumeProperties(shape)).volume,
+        area: owners.own(measureShapeSurfaceProperties(shape)).area, count: solver.mock.calls.length,
+        measured: solver.mock.results.at(-1)?.value.drivenValues['measured-arc'] });
+      const stale = { ...prototype, features: prototype.features.map(item => item.id === parent.id ? { ...parent, offset: 3 } : item) };
+      expect(() => stageFeatureRecipeEvaluation(proposal, prototype.catalog, { sourceFeatureId: 'pattern', lineage: 'experimental-stale' }, stale))
+        .toThrow('changed');
+    } finally { proposal.dispose(); }
+    return evaluate(input);
+  });
+  try {
+    const result = engine.build(saved.features);
+    expect(observations, JSON.stringify(result.featureErrors)).toHaveLength(1);
+    const observation = observations[0];
+    expect(observation.count).toBe(row.primitive ? 0 : 2);
+    expect(observation.probes[0]).toBeCloseTo(0, 7); expect(observation.probes[1]).toBeCloseTo(.008, 7);
+    if (!row.primitive) expect(observation.measured).toBeCloseTo(2, 7);
+    const volume = row.primitive ? 800 - 2 * Math.PI : 672 - 16 * Math.PI;
+    const area = row.primitive ? 520 + 7.5 * Math.PI : 584 + 12 * Math.PI;
+    expect(Math.abs(observation.volume - volume)).toBeLessThan(V);
+    expect(Math.abs(observation.area - area)).toBeLessThan(V);
+    expect(result.featureErrors.map(error => error.id)).toEqual(['pattern']);
+    expect(result.featureErrors[0].message).toContain('saved remap policy');
+    metrics(engine, A, 800, 520, row.min, row.max);
+  } finally { observe.mockRestore(); solver.mockRestore(); }
+}), 60_000);
+
+it.each([false, true])('opens and rebuilds the saved opposite-normal sketch on a quarter turn (primitive=%s)', primitive => usingEngine(engine => {
+  const parent: Feature = { id: 'profile-datum-a', type: 'plane', name: 'Original reversed XY at 6', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 6 };
+  const child: Feature = { ...parent, id: 'profile-datum-b', name: 'Original negative Z at 5', support: { kind: 'plane', planeId: parent.id }, reversed: false, offset: 1 };
+  const profile = solvedCircle();
+  profile.points[0].y = -5;
+  const fixed = profile.constraints.find(item => item.type === 'fix');
+  if (fixed?.type !== 'fix') throw Error('Original circle needs its fixed centre.');
+  fixed.y = -5;
+  const sketch: SketchFeature = { id: 'profile-c', type: 'sketch', name: 'Original negative Z at 4', suppressed: false,
+    plane: 'XZ', offset: 1, support: { kind: 'plane', planeId: child.id },
+    profile: primitive ? { kind: 'circle', center: [5, -5], radius: 2 } : profile };
+  const p = pattern('circularPattern');
+  if (p.type !== 'circularPattern' || p.featurePattern?.mode !== 'regenerate') throw Error('Missing original pattern');
+  p.axis = { origin: [12, 0, 0], direction: [0, 1, 0] }; p.angle = 90;
+  p.featurePattern.referencePolicies = [parent, child, sketch].map(item => ({ featureId: item.id, path: 'support', placement: 'transform' }));
+  const prefix = document([parent, child, ...box('create-S', 'S', [0, 0, 0], [10, 10, 6]), sketch,
+    { id: 'seed', name: 'Original R2x2 cavity', type: 'cut', suppressed: false, sketchId: sketch.id, depth: 2, symmetric: false,
+      bodyScope: [{ bodyId: 'S', sourceFeatureId: 'create-S' }] }, ...box('create-A', 'A', [12, 0, 2], [18, 10, 12])]);
+  const saved = parseDocument(serializeDocument(addFeature(prefix, p)));
+  const realSolve = vi.spyOn(profiles, 'solveEntityProfileResult');
+  try {
+    build(engine, saved);
+    expect(realSolve).toHaveBeenCalledTimes(primitive ? 0 : 2);
+    if (!primitive) expect(realSolve.mock.results[1].value.drivenValues['measured-radius']).toBeCloseTo(2, 7);
+    metrics(engine, S, 600 - 8 * Math.PI, 440 + 16 * Math.PI, [0, 0, 0], [10, 10, 6]);
+    metrics(engine, output(), 600 - 8 * Math.PI, 440 + 16 * Math.PI, [12, 0, 2], [18, 10, 12]);
+    // Start (5,5,4) -> (16,5,7). The ray -Z becomes -X. The real cut spans x=14..16.
+    probe(engine, output(), [15, 5, 7], false); probe(engine, output(), [16.5, 5, 7], true);
+    probe(engine, output(), [13.5, 5, 7], true); probe(engine, S, [5, 5, 3], false);
+  } finally { realSolve.mockRestore(); }
+}), 60_000);
+
+it('guards a saved associated sketch against another active address, physical owner and earlier source epoch', () => usingEngine((engine, owners) => {
+  const original = validateDocument(createRequire(import.meta.url)('../../scripts/desktop-pattern-sketch-support-original.cjs')());
+  const geometry = original.features.at(-1)! as RepetitionFeature, history = new Map(original.features.slice(0,-1).map(item => [item.id,item]));
+  const recipe = withTransformedSketchSupports(withFeaturePatternMode(geometry,'regenerate'),history,true);
+  if (recipe.type !== 'circularPattern') throw Error('Original quarter-turn missing');
+  const doc = parseDocument(serializeDocument(updateFeature(original, geometry.id, recipe)));
+  const stage = recipeEvaluation.stageFeatureRecipeEvaluation;
+  let priorRegistry: Parameters<typeof stage>[3]['sourceSketchSolves'];
+  const capture = vi.spyOn(recipeEvaluation,'stageFeatureRecipeEvaluation').mockImplementation((evaluation,catalog,update,current) => {
+    priorRegistry = current.sourceSketchSolves;
+    return stage(evaluation,catalog,update,current);
+  });
+  try { build(engine,doc); } finally { capture.mockRestore(); }
+  expect(priorRegistry).toBeTruthy();
+  const stale = vi.spyOn(recipeEvaluation,'stageFeatureRecipeEvaluation').mockImplementation((evaluation,catalog,update,current) =>
+    stage(evaluation,catalog,update,{ ...current,sourceSketchSolves:priorRegistry }));
+  try {
+    const result = engine.build(doc.features);
+    expect(result.featureErrors).toHaveLength(1); expect(result.featureErrors[0].message).toContain('epoch');
+    metrics(engine,A,1000,600,[8,0,2],[18,10,12]);
+  } finally { stale.mockRestore(); }
+  const create = recipeBridge.buildRecipeInstanceTool;
+  for (const fault of ['address','physical-owner'] as const) {
+    const inputDoc = fault==='address' ? updateFeature(doc,recipe.id,{...recipe,count:3}) : doc;
+    const wrong = vi.spyOn(recipeBridge,'buildRecipeInstanceTool').mockImplementation(input => {
+      const other = input.closure.request.plan.transforms.find(item => item.key !== input.address);
+      if (fault==='address' && !other) throw Error('No independent active address');
+      return create(fault==='address' ? { ...input,address:other!.key } :
+        { ...input,workingTarget:owners.own(bodies.copyBodyShape(input.workingTarget)) });
+    });
+    try {
+      const result = engine.build(inputDoc.features);
+      expect(result.featureErrors.map(item=>item.id)).toEqual([recipe.id]);
+      expect(result.featureErrors[0].message).toContain('instancia, el cuerpo o la revisión');
+      metrics(engine,A,1000,600,[8,0,2],[18,10,12]);
+    } finally { wrong.mockRestore(); }
+  }
+  build(engine,doc);
+}),60_000);
+
+it('reopens a changed thin seed, holds the patterned owner and rebuilds its existing support policy after repair', () => usingEngine(engine => {
+  const original = validateDocument(createRequire(import.meta.url)('../../scripts/desktop-pattern-sketch-support-original.cjs')());
+  const p = original.features.at(-1)! as RepetitionFeature;
+  const history = new Map(original.features.slice(0, -1).map(item => [item.id, item]));
+  const recipe = withTransformedSketchSupports(withFeaturePatternMode(p, 'regenerate'), history, true);
+  const before = updateFeature(original, p.id, recipe);
+  const seed = before.features.find(item => item.id === 'seed-limit');
+  if (seed?.type !== 'cut') throw Error('Original cut missing');
+  const changed = updateFeature(before, seed.id, { ...seed, thinWall: { kind: 'mid-plane', thickness: 1 } });
+  const reopened = parseDocument(serializeDocument(changed));
+  const result = engine.build(reopened.features);
+  expect(result.featureErrors.map(item => item.id)).toEqual([recipe.id]);
+  metrics(engine, A, 1000, 600, [8, 0, 2], [18, 10, 12]);
+  const repaired = updateFeature(reopened, seed.id, { thinWall: undefined });
+  expect(repaired.features.at(-1)).toEqual(before.features.at(-1));
+  build(engine, repaired);
+  metrics(engine, { bodyId: 'A', sourceFeatureId: recipe.id }, 1000 - 32 * Math.PI, 600 + 32 * Math.PI, [8, 0, 2], [18, 10, 12]);
+}), 60_000);
+
+it('retains a face-rooted saved chain as a local recipe failure and recovers its exact principal support after repair', () => usingEngine(engine => {
+  // Exact original earlier face-producing operations and their opaque locator.
+  // This does not enable a face-rooted recipe or manufacture its native owner.
+  const require = createRequire(import.meta.url), original = require('../../scripts/desktop-pattern-sketch-support-original.cjs')();
+  const faceFixture = require('./fixtures/pattern-world-face-limit-original.json');
+  const support = structuredClone(faceFixture.features.find((feature: Feature) => feature.id === 'seed-limit').endCondition.target);
+  const input = validateDocument({ ...original, features: [...structuredClone(faceFixture.features.slice(0, 6)), ...original.features] });
+  const p = input.features.at(-1)! as RepetitionFeature;
+  const recipe = withTransformedSketchSupports(withFeaturePatternMode(p, 'regenerate'), new Map(input.features.map(item => [item.id, item])), true);
+  const before = updateFeature(input, recipe.id, recipe);
+  build(engine, before);
+  const changed = updateFeature(before, 'datum-a', { support }), reopened = parseDocument(serializeDocument(changed));
+  const rejected = engine.build(reopened.features);
+  expect(rejected.featureErrors.map(item => item.id)).toEqual([recipe.id]);
+  expect(rejected.featureErrors[0].message).toContain('opaque face key');
+  metrics(engine, A, 1000, 600, [8, 0, 2], [18, 10, 12]);
+  expect(reopened.features.at(-1)).toEqual(before.features.at(-1));
+  const repaired = parseDocument(serializeDocument(updateFeature(reopened, 'datum-a', { support: { kind: 'principal', plane: 'XY' } })));
+  expect(repaired.features).toEqual(before.features);
+  build(engine, repaired);
+  metrics(engine, { bodyId: 'A', sourceFeatureId: recipe.id }, 1000 - 32 * Math.PI, 600 + 32 * Math.PI, [8, 0, 2], [18, 10, 12]);
 }), 60_000);

@@ -3,7 +3,7 @@ import type { Feature, RepetitionFeature } from '../cad/kernel.types'
 import { applyBodyCommand, prepareBodyCommand, type BodyCommandState } from './bodyCommands'
 import { parseDocument, serializeDocument, validateDocument } from './document'
 import { withFeaturePatternMode, withFeaturePatternScope, withFeaturePatternSeeds, withFeaturePatternWorldLimit } from './featurePatternCommands'
-import { validateFeaturePatternDeclaration } from './featurePatterns'
+import { sourceRecipeScopeIntent, validateFeaturePatternDeclaration } from './featurePatterns'
 import { extractRecipeClosure, requireInitialRecipeDeclaration, type RegenerationRequest } from './featureRecipes'
 
 // Original symbolic fixtures: no native or reference-application evidence.
@@ -36,7 +36,7 @@ function request(feature: RepetitionFeature): RegenerationRequest {
   return { mode: 'regenerate', geometryPattern: false, patternId: feature.id, patternKind: feature.type,
     beforeFeatureIndex: prefix.length, sourceFeatureIds: [current.sourceFeatureId],
     plan: { transforms: [{ key: '1,0', translation: [3, 0, 4] }], structure: { originalFixture: 'policy-only' } },
-    scope: operation.scope === 'all' ? { mode: 'all', reevaluateAt: 'patternInput' } : { mode: 'selected', targets: operation.targets },
+    scope: sourceRecipeScopeIntent(operation),
     targetSnapshot: [current], bindings: operation.bindings.map(binding => ({ source: binding.source, targets: binding.targetBodyIds })),
     referencePolicies: operation.referencePolicies, variation: operation.variation }
 }
@@ -60,9 +60,9 @@ describe('saved external principal-plane recipe intent', () => {
 
   it.each([
     { kind: 'unsupported path', policies: [{ featureId: current.sourceFeatureId, path: 'support', placement: 'world' }] },
-    { kind: 'unsupported placement', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'transform' }] },
+    { kind: 'unsupported instance placement', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'instance' }] },
     { kind: 'unselected source', policies: [{ featureId: 'not-a-selected-seed', path: 'endCondition.target', placement: 'world' }] },
-    { kind: 'unknown field', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world', owner: baseRef }] },
+    { kind: 'unknown field', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world', body: baseRef }] },
     { kind: 'duplicate source', policies: Array.from({ length: 2 }, () => ({ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world' })) },
   ])('rejects $kind raw policies', ({ policies }) => {
     const feature = pattern()
@@ -119,12 +119,13 @@ describe('saved external principal-plane recipe intent', () => {
     expect(() => extractRecipeClosure(changed, request(feature))).toThrow(/stale hidden policies/)
   })
 
-  it('keeps transformed principal-plane resolution pending in the internal declaration API', () => {
-    const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true), input = request(feature)
-    input.referencePolicies[0].placement = 'transform'
-    const closure = extractRecipeClosure(prefix, input)
-    expect(closure.diagnostics.some(item => item.code === 'UP_TO_SURFACE_PENDING')).toBe(true)
-    expect(() => requireInitialRecipeDeclaration(closure)).toThrow()
+  it('retains the explicit transformed principal-plane placement after save and extraction', () => {
+    const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true, 'endCondition.target', undefined, 'transform')
+    const reopened = parseDocument(serializeDocument(document([...prefix, feature])))
+    const saved = reopened.features.at(-1) as RepetitionFeature
+    expect(request(saved).referencePolicies).toEqual([{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'transform' }])
+    const closure = requireInitialRecipeDeclaration(extractRecipeClosure(reopened.features, request(saved)))
+    expect(closure.operations[0].termination).toMatchObject({ kind: 'upToSurface', policy: { placement: 'transform' } })
   })
 
   it('rejects a stale healthy command receipt after changing the saved limit choice', () => {
@@ -137,4 +138,11 @@ describe('saved external principal-plane recipe intent', () => {
     const edited = withFeaturePatternWorldLimit(feature, current.sourceFeatureId, false)
     expect(applyBodyCommand(prepared.plan, { ...input, feature: edited }, { features: prepared.plan.previewFeatures, healthy: true }).accepted).toBe(false)
   })
+})
+
+it('rejects a historical face owner on a seed whose target is a principal plane', () => {
+  const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true)
+  if (feature.featurePattern?.mode !== 'regenerate') throw Error('Missing original pattern.')
+  feature.featurePattern.referencePolicies[0].owner = { ...baseRef }
+  expect(() => extractRecipeClosure(prefix, request(feature))).toThrow()
 })

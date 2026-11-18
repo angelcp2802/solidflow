@@ -1,3 +1,4 @@
+import { principalRecipeDatumChain } from '../model/recipeDatumChain';
 import type { Feature, PlaneFrame, PlaneSupport, SketchFeature, SketchVisual } from './kernel.types';
 import type { SketchSolveResult } from '../sketch/types';
 import { solveEntityProfileResult } from './kernel.profiles';
@@ -44,6 +45,8 @@ export function resolveSourceSketchSupport(context: SourceSketchSupportContext,
 export const SOURCE_SKETCH_SOLVE_REVISION = 'source-sketch-solve-v1';
 declare const handleBrand: unique symbol;
 declare const checkpointBrand: unique symbol;
+declare const datumBrand: unique symbol;
+export interface RecipeDatumCheckpoint { readonly [datumBrand]: true }
 export interface SourceSketchSolveHandle { readonly [handleBrand]: true }
 export interface SourceSketchSolveCheckpoint { readonly [checkpointBrand]: true }
 export interface SourceSketchSolveView {
@@ -61,7 +64,20 @@ const readers = new WeakMap<object, {
   checkpoint(current: readonly Feature[], sourceIds: readonly string[]): SourceSketchSolveCheckpoint;
   assertCheckpoint(proof: SourceSketchSolveCheckpoint, current: readonly Feature[]): void;
   readCheckpointSource(proof: SourceSketchSolveCheckpoint, current: readonly Feature[], sourceId: string): SourceSketchSolveView;
+  checkpointDatum(current: readonly Feature[], id: string): RecipeDatumCheckpoint;
+  readDatum(proof: RecipeDatumCheckpoint, current: readonly Feature[], id: string): PlaneFrame;
 }>();
+
+export function checkpointRecipeDatum(registry: SourceSketchSolveRegistry, current: readonly Feature[], id: string): RecipeDatumCheckpoint {
+  const issued = readers.get(registry);
+  if (!issued) throw Error('El historial de planos no pertenece a una reconstrucción activa.');
+  return issued.checkpointDatum(current, id);
+}
+export function readRecipeDatum(registry: SourceSketchSolveRegistry, proof: RecipeDatumCheckpoint, current: readonly Feature[], id: string): PlaneFrame {
+  const issued = readers.get(registry);
+  if (!issued) throw Error('El historial de planos no pertenece a una reconstrucción activa.');
+  return issued.readDatum(proof, current, id);
+}
 
 export function checkpointSourceSketchSolves(registry: SourceSketchSolveRegistry,
   current: readonly Feature[], sourceIds: readonly string[]): SourceSketchSolveCheckpoint {
@@ -156,6 +172,8 @@ export function createSourceSketchSolveRegistry(features: readonly Feature[], co
   // Nothing enumerates features here. Admission occurs inside the engine's
   // original per-feature guard, so a later malformed raw object stays local.
   const definitions = new Map<number, { snapshot: Feature; key: string } | null>();
+  const planeIndices = new Map<string, number>();
+  const datumProofs = new WeakMap<RecipeDatumCheckpoint, { id: string; owners: object[] }>();
   let unattestableFrom = Infinity;
   const records = new WeakMap<SourceSketchSolveHandle, RecordProof>();
   const checkpoints = new WeakMap<SourceSketchSolveCheckpoint, readonly SourceSketchSolveHandle[]>();
@@ -206,6 +224,26 @@ export function createSourceSketchSolveRegistry(features: readonly Feature[], co
     }
     return record;
   };
+  const datumState = (current: readonly Feature[], id: string) => {
+    requireActive();
+    const index = planeIndices.get(id);
+    if (index === undefined) throw Error('El plano de referencia ya no está disponible.');
+    requirePrefix(current, index);
+    const chain = principalRecipeDatumChain(id, key => definitions.get(planeIndices.get(key) ?? -1)?.snapshot);
+    if (!chain || chain[0].support.kind !== 'principal') throw Error('La cadena de planos necesita una referencia de cara exacta.');
+    let frame = principalPlaneFrame(chain[0].support.plane);
+    let lineage = advanceLineage('', ['principal', chain[0].support.plane]), priorIndex = -1;
+    const owners: object[] = [];
+    for (const plane of chain) {
+      const position = planeIndices.get(plane.id)!, actual = context.planes.get(plane.id);
+      frame = offsetPlaneFrame(frame, plane.offset, plane.reversed);
+      lineage = advanceLineage(lineage, [plane.id, 'plane', plane.reversed]);
+      if (position <= priorIndex || !actual || !context.planeFeatureIds.has(plane.id) || context.unavailableFeatureIds.has(plane.id)
+        || actual.lineage !== lineage || canonical(actual.frame) !== canonical(frame)) throw Error('La cadena histórica del plano ha cambiado.');
+      owners.push(actual); priorIndex = position;
+    }
+    return { frame, owners };
+  };
   const controller = Object.freeze({
     /** Metadata-only admission, after the engine's existing declaration guards. */
     observeFeature(feature: Feature, index: number): void {
@@ -217,6 +255,7 @@ export function createSourceSketchSolveRegistry(features: readonly Feature[], co
         }
         const snapshot = snapshotDefinition(feature);
         definitions.set(index, snapshot ? { snapshot, key: canonical(snapshot) } : null);
+        if (snapshot?.type === 'plane') planeIndices.set(snapshot.id, index);
         if (!snapshot) unattestableFrom = Math.min(unattestableFrom, index);
       } catch {
         // Snapshot/registration failure cannot turn an otherwise ordinary
@@ -303,13 +342,27 @@ export function createSourceSketchSolveRegistry(features: readonly Feature[], co
       for (const handle of handles) requireRecord(handle, current, true);
     },
     /** Build abort/finally invalidates every prior handle and checkpoint. */
-    revoke(): void { active = false; published.clear(); definitions.clear(); },
+    revoke(): void { active = false; published.clear(); definitions.clear(); planeIndices.clear(); },
   });
   // The evaluator receives only this reader. Issuing and revoking remain in the
   // engine reconstruction closure, never in saved inputs or evaluation DTOs.
   const reader = Object.freeze({ handleFor: controller.handleFor, read: controller.read,
     checkpoint: controller.checkpoint, assertCheckpoint: controller.assertCheckpoint });
   readers.set(reader, { checkpoint: controller.checkpoint, assertCheckpoint: controller.assertCheckpoint,
+    checkpointDatum(current, id) {
+      const { owners } = datumState(current, id), proof = Object.freeze({}) as RecipeDatumCheckpoint;
+      datumProofs.set(proof, { id, owners });
+      return proof;
+    },
+    readDatum(proof, current, id) {
+      const issued = datumProofs.get(proof);
+      if (!issued || issued.id !== id) throw Error('El plano no pertenece a esta captura de la reconstrucción.');
+      const state = datumState(current, id);
+      if (state.owners.length !== issued.owners.length || state.owners.some((item, i) => item !== issued.owners[i])) {
+        throw Error('El historial de planos ha cambiado desde la captura.');
+      }
+      return clonePlaneFrame(state.frame);
+    },
     readCheckpointSource(proof, current, sourceId) {
       controller.assertCheckpoint(proof, current);
       const handle = published.get(sourceId);

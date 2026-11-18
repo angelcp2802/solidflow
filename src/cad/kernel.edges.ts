@@ -1,5 +1,7 @@
-import type { Edge, Shape3D } from 'replicad';
+import { getOC, type Edge, type Shape3D } from 'replicad';
 import type { EdgeReference, PickableEdge, Vec3 } from './kernel.types';
+import { ownedNativeTopology } from './kernel.native-topology';
+import { withNativeOwners } from './kernel.native-ownership';
 
 interface EdgeEntry {
   edge: Edge;
@@ -17,8 +19,7 @@ const round = (value: number): number => Math.round(value * PRECISION) / PRECISI
 const compareText = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 
 function boundsOf(shape: Shape3D | Edge): [Vec3, Vec3] {
-  const box = shape.boundingBox;
-  try { return box.bounds; } finally { box.delete(); }
+  return withNativeOwners(owners => owners.own(shape.boundingBox).bounds, undefined, 'Native edge bounds query or release failed.');
 }
 
 function histogram(items: string[]): [string, number][] {
@@ -45,17 +46,19 @@ function histogram(items: string[]): [string, number][] {
  * quantization absorbs numerical noise, not deliberate topology changes.
  */
 export function createEdgeCatalog(shape: Shape3D, sourceFeatureId: string, lineage = ''): EdgeCatalog {
-  const edges = shape.edges;
-  const faces = shape.faces;
-  const solids = shape.solids;
-  try {
+  return withNativeOwners(owners => {
+    const edges = ownedNativeTopology(shape, 'edge'); owners.ownAll(edges);
+    const faces = ownedNativeTopology(shape, 'face'); owners.ownAll(faces);
+    const solids = ownedNativeTopology(shape, 'solid'); owners.ownAll(solids);
     const [minimum, maximum] = boundsOf(shape);
     const spans = maximum.map((value, index) => value - minimum[index]);
     const normalize = (point: Vec3): number[] => point.map((value, index) =>
       round((value - minimum[index]) / (spans[index] || 1)));
     const normalizedBounds = (bounds: [Vec3, Vec3]) => bounds.map(normalize);
-    const faceTypes = faces.map((face) => face.geomType);
-    const curveTypes = edges.map((edge) => edge.geomType);
+    const faceTypes = faces.map(face => withNativeOwners(faceOwners => faceOwners.own(face.surface).surfaceType,
+      undefined, 'Native edge face type query or release failed.'));
+    const curveTypes = edges.map(edge => withNativeOwners(curveOwners => curveOwners.own(edge.curve).curveType,
+      undefined, 'Native edge type query or release failed.'));
     const topology = [edges.length, faces.length, solids.length, histogram(curveTypes), histogram(faceTypes)];
     const adjacency = new Map<Edge, string[]>();
     const edgeBuckets = new Map<number, Edge[]>();
@@ -64,51 +67,46 @@ export function createEdgeCatalog(shape: Shape3D, sourceFeatureId: string, linea
       const hash = edge.hashCode;
       edgeBuckets.set(hash, [...(edgeBuckets.get(hash) ?? []), edge]);
     }
-    for (const [index, face] of faces.entries()) {
-      const box = face.boundingBox;
-      let bounds: [Vec3, Vec3];
-      try { bounds = box.bounds; } finally { box.delete(); }
+    for (const [index, face] of faces.entries()) withNativeOwners(faceOwners => {
+      const bounds = faceOwners.own(face.boundingBox).bounds;
       let normal: number[] | null = null;
       if (faceTypes[index] === 'PLANE') {
-        const vector = face.normalAt();
-        try { normal = vector.toTuple().map(round); } finally { vector.delete(); }
+        const oc = getOC(), uv = face.UVBounds, point = faceOwners.own(new oc.gp_Pnt()), vector = faceOwners.own(new oc.gp_Vec());
+        faceOwners.own(new oc.BRepGProp_Face(face.wrapped, false)).Normal((uv.uMin + uv.uMax) * .5, (uv.vMin + uv.vMax) * .5, point, vector);
+        normal = [vector.X(), vector.Y(), vector.Z()].map(round);
       }
       const faceKey = JSON.stringify([faceTypes[index], normalizedBounds(bounds), normal]);
-      const faceEdges = face.edges;
+      const faceEdges = ownedNativeTopology(face, 'edge'); faceOwners.ownAll(faceEdges);
       const added = new Set<Edge>();
-      try {
-        for (const faceEdge of faceEdges) {
-          for (const edge of edgeBuckets.get(faceEdge.hashCode) ?? []) {
-            if (!added.has(edge) && edge.isSame(faceEdge)) {
-              adjacency.get(edge)!.push(faceKey);
-              added.add(edge);
-            }
+      for (const faceEdge of faceEdges) {
+        for (const edge of edgeBuckets.get(faceEdge.hashCode) ?? []) {
+          if (!added.has(edge) && edge.isSame(faceEdge)) {
+            adjacency.get(edge)!.push(faceKey);
+            added.add(edge);
           }
         }
-      } finally {
-        faceEdges.forEach((edge) => edge.delete());
       }
-    }
-    const entries = edges.map((edge, index): EdgeEntry => {
-      const parameters = edge.isClosed
+    }, undefined, 'Native edge adjacency query or release failed.');
+    const entries = edges.map((edge, index): EdgeEntry => withNativeOwners(edgeOwners => {
+      const curve = edgeOwners.own(edge.curve), closed = curve.isClosed;
+      const parameters = closed
         ? [0, .125, .25, .375, .5, .625, .75, .875]
         : curveTypes[index] === 'LINE' ? [0, .5, 1] : [0, .25, .5, .75, 1];
       // Sorting makes keys insensitive to the traversal direction of an edge.
-      const samples = parameters.map((parameter) => {
-        const point = edge.pointAt(parameter);
-        try { return normalize(point.toTuple()); } finally { point.delete(); }
-      }).sort((a, b) => compareText(JSON.stringify(a), JSON.stringify(b)));
-      const descriptor = [lineage, topology, curveTypes[index], edge.isClosed, normalizedBounds(boundsOf(edge)), samples, adjacency.get(edge)!.sort()];
+      const samples = parameters.map(parameter => withNativeOwners(pointOwners => {
+        const first = curve.wrapped.FirstParameter(), point = pointOwners.own(curve.wrapped.Value(first + (curve.wrapped.LastParameter() - first) * parameter));
+        return normalize([point.X(), point.Y(), point.Z()]);
+      }, undefined, 'Native edge sample query or release failed.')).sort((a, b) => compareText(JSON.stringify(a), JSON.stringify(b)));
+      const descriptor = [lineage, topology, curveTypes[index], closed, normalizedBounds(boundsOf(edge)), samples, adjacency.get(edge)!.sort()];
       return { edge, ref: { sourceFeatureId, key: KEY_PREFIX + JSON.stringify(descriptor) } };
-    });
-    return { entries, dispose: () => edges.forEach((edge) => edge.delete()) };
-  } catch (error) {
-    edges.forEach((edge) => edge.delete());
-    throw error;
-  } finally {
-    faces.forEach((face) => face.delete());
-    solids.forEach((solid) => solid.delete());
-  }
+    }, undefined, 'Native edge descriptor query or release failed.'));
+    let disposed = false;
+    return { entries, dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      withNativeOwners(releases => { releases.ownAll(edges); }, undefined, 'Native edge catalog release failed.');
+    } };
+  }, catalog => catalog.entries.map(entry => entry.edge), 'Native edge catalog construction or release failed.');
 }
 
 export function resolveEdgeReferences(catalog: EdgeCatalog, references: EdgeReference[], sourceFeatureId: string): Edge[] {
@@ -127,14 +125,21 @@ export function resolveEdgeReferences(catalog: EdgeCatalog, references: EdgeRefe
   });
 }
 
+/** Borrow a current owned catalog; only detached references and native mesh data escape. */
+export function pickableEdgesFromCatalog(catalog: {
+  readonly entries: readonly { edge: Edge; ref: EdgeReference; aliases?: readonly EdgeReference[] }[];
+}): PickableEdge[] {
+  return catalog.entries.map(({ edge, ref, aliases }) => ({
+    ref: { ...ref },
+    ...(aliases ? { aliases: aliases.map(alias => ({ ...alias })) } : {}),
+    lines: edge.meshEdges({ tolerance: .05, angularTolerance: .12 }).lines,
+  }));
+}
+
 export function pickableEdges(shape: Shape3D, sourceFeatureId: string, lineage = ''): PickableEdge[] {
-  const catalog = createEdgeCatalog(shape, sourceFeatureId, lineage);
-  try {
-    return catalog.entries.map(({ edge, ref }) => ({
-      ref,
-      lines: edge.meshEdges({ tolerance: .05, angularTolerance: .12 }).lines,
-    }));
-  } finally {
-    catalog.dispose();
-  }
+  return withNativeOwners(owners => {
+    const catalog = createEdgeCatalog(shape, sourceFeatureId, lineage);
+    owners.own({ delete: () => catalog.dispose() });
+    return pickableEdgesFromCatalog(catalog);
+  }, undefined, 'Native edge mesh or catalog release failed.');
 }

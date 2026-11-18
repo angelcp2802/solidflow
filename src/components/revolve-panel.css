@@ -1,0 +1,30 @@
+.revolve-axis-label { display: block; margin-bottom: 6px; color: #526c80; font-size: 11px; }
+.revolve-axis-section select { border-left: 3px solid #4b92c3; }
+.revolve-axis-section select[aria-invalid="true"] { border-color: #ba6c57; }
+.revolve-axis-error { margin: 8px 0 0; color: #9c442f; font-size: 11px; line-height: 1.5; }
+.revolve-axis-actions { display: flex; gap: 5px; margin-top: 6px; }
+.revolve-axis-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 28px; padding: 4px 6px; border: 1px solid #9ebdd2; border-radius: 3px; background: #f3f8fc; color: #385c78; font: inherit; font-size: 11px; white-space: nowrap; cursor: pointer; }
+.revolve-axis-actions .revolve-axis-pick { flex: 1 1 0; min-width: 0; }
+.revolve-axis-actions .revolve-axis-pick.active { border-color: #207fba; background: #dceefb; color: #165d8b; }
+.revolve-axis-actions button:focus-visible { outline: 2px solid #207fba; outline-offset: 2px; }
+.revolve-axis-actions button:disabled { color: #7b8c99; border-color: #c5d1da; cursor: default; }
+.revolve-reverse { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: #385c78; font-size: 11px; cursor: pointer; }
+.revolve-reverse input { margin: 0; accent-color: #207fba; }
+.revolve-reverse svg { color: #357eae; flex-shrink: 0; }
+.revolve-direction-section > select { margin-bottom: 10px; border-left: 3px solid #4b92c3; }
+.revolve-direction-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.revolve-direction-toggle input { margin: 0; accent-color: #207fba; }
+.revolve-reverse:has(input:disabled) { color: #7b8c99; cursor: default; }
+.revolve-angle-error { margin: 0 12px 12px; }
+
+
+/* Parameter-first density is local to revolution; other editors retain their layout. */
+.property-manager.property-manager-revolve .property-section { padding: 0 10px 8px; }
+.property-manager.property-manager-revolve .property-section h3 { height: 28px; margin: 0 0 5px; }
+.property-manager.property-manager-revolve .operation-profile-section { padding-top: 7px; }
+.property-manager.property-manager-revolve .operation-profile-section h3 { height: 22px; margin-bottom: 4px; }
+.property-manager.property-manager-revolve .muted-small { margin-top: 6px; }
+.property-manager.property-manager-revolve .property-section > select { margin-bottom: 6px; }
+.property-manager.property-manager-revolve .revolve-axis-label { margin-bottom: 4px; }
+.property-manager.property-manager-revolve .number-field { min-height: 34px; }
+.property-manager.property-manager-revolve .revolve-reverse { margin-top: 6px; }

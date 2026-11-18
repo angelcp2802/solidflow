@@ -1,7 +1,7 @@
-import { getOC, isShape3D, measureShapeVolumeProperties, type AnyShape, type Shape3D } from 'replicad';
+import { cast, getOC, isShape3D, measureShapeVolumeProperties, type Shape3D } from 'replicad';
 import { decodeStepSource, type StepSource } from '../model/stepSource';
 import { stepLengthUnit } from './kernel.step-units';
-import { castOwnedNativeShape } from './kernel.native';
+import { withNativeOwners } from './kernel.native-ownership';
 
 let nextImport = 0;
 
@@ -9,9 +9,14 @@ let nextImport = 0;
 export function importStepSolid(source: StepSource): Shape3D {
   const bytes = decodeStepSource(source);
   stepLengthUnit(bytes); // Reject missing/ambiguous units and external references before native parsing.
-  const oc = getOC(), path = `/solidflow-import-${++nextImport}.step`, reader = new oc.STEPControl_Reader();
-  let raw: ReturnType<typeof reader.OneShape> | null = null, shape: AnyShape | null = null;
-  try {
+  if (nextImport >= Number.MAX_SAFE_INTEGER) throw new Error('STEP: se agotaron las identidades temporales de importación.');
+  const oc = getOC(), path = `/solidflow-import-${++nextImport}.step`;
+  if (oc.FS.readdir('/').includes(path.slice(1))) throw new Error('STEP: la ruta temporal de importación ya está ocupada.');
+  return withNativeOwners(owners => {
+    // Only this newly admitted pathname is ours. Partial writes are cleaned too;
+    // failure to query/release it is fatal and withholds the otherwise valid solid.
+    owners.own({ delete() { if (oc.FS.readdir('/').includes(path.slice(1))) oc.FS.unlink(path); } });
+    const reader = owners.own(new oc.STEPControl_Reader());
     oc.FS.writeFile(path, bytes);
     if (reader.ReadFile(path) !== oc.IFSelect_ReturnStatus.IFSelect_RetDone) throw new Error('STEP: el lector no pudo leer el archivo completo.');
     // OCCT uses millimeters for this explicit target (1 mm), independently of
@@ -20,41 +25,30 @@ export function importStepSolid(source: StepSource): Shape3D {
     if (reader.SystemLengthUnit() !== 1) throw new Error('STEP: no se pudo fijar la unidad de destino en milímetros.');
     const roots = reader.NbRootsForTransfer();
     if (roots < 1 || reader.TransferRoots() !== roots || reader.NbShapes() < 1) throw new Error('STEP: transferencia de geometría incompleta.');
-    raw = reader.OneShape();
+    const raw = owners.own(reader.OneShape());
     if (raw.IsNull()) throw new Error('STEP: no contiene geometría transferible.');
-    const transfer = raw; raw = null; shape = castOwnedNativeShape(transfer);
+    // cast returns a separately owned downcast wrapper. Keep the reader's raw
+    // wrapper independently owned; do not use a consuming cast helper here.
+    const shape = owners.own(cast(raw));
     if (!isShape3D(shape)) throw new Error('STEP: se requiere un sólido cerrado tridimensional.');
-    const solids = shape.solids;
-    try {
-      if (solids.length !== 1) throw new Error('STEP: se requiere exactamente un sólido cerrado; no se admiten varios sólidos ni superficies abiertas.');
-      const shells = new oc.TopExp_Explorer(solids[0].wrapped, oc.TopAbs_ShapeEnum.TopAbs_SHELL, oc.TopAbs_ShapeEnum.TopAbs_SHAPE);
-      let count = 0;
-      try {
-        while (shells.More()) {
-          const shell = shells.Current();
-          try { if (!oc.BRep_Tool.IsClosed(shell)) throw new Error('STEP: el sólido contiene una envolvente abierta.'); }
-          finally { shell.delete(); }
-          count++; shells.Next();
-        }
-        if (!count) throw new Error('STEP: el sólido no tiene una envolvente cerrada.');
-      } finally { shells.delete(); }
+    const solids = owners.ownAll(shape.solids);
+    if (solids.length !== 1) throw new Error('STEP: se requiere exactamente un sólido cerrado; no se admiten varios sólidos ni superficies abiertas.');
+    const shells = owners.own(new oc.TopExp_Explorer(solids[0].wrapped, oc.TopAbs_ShapeEnum.TopAbs_SHELL, oc.TopAbs_ShapeEnum.TopAbs_SHAPE));
+    let count = 0;
+    while (shells.More()) {
+      const shell = owners.own(shells.Current());
+      if (!oc.BRep_Tool.IsClosed(shell)) throw new Error('STEP: el sólido contiene una envolvente abierta.');
+      count++; shells.Next();
     }
-    finally { solids.forEach(solid => solid.delete()); }
+    if (!count) throw new Error('STEP: el sólido no tiene una envolvente cerrada.');
     // ToAvoid SOLID omits all descendants of solids, exposing loose topology.
     for (const kind of ['SHELL', 'FACE', 'WIRE', 'EDGE', 'VERTEX'] as const) {
-      const explorer = new oc.TopExp_Explorer(shape.wrapped, oc.TopAbs_ShapeEnum[`TopAbs_${kind}`], oc.TopAbs_ShapeEnum.TopAbs_SOLID);
-      try { if (explorer.More()) throw new Error('STEP: contiene superficies, curvas o puntos sueltos fuera del sólido.'); }
-      finally { explorer.delete(); }
+      const explorer = owners.own(new oc.TopExp_Explorer(shape.wrapped, oc.TopAbs_ShapeEnum[`TopAbs_${kind}`], oc.TopAbs_ShapeEnum.TopAbs_SOLID));
+      if (explorer.More()) throw new Error('STEP: contiene superficies, curvas o puntos sueltos fuera del sólido.');
     }
-    const analyzer = new oc.BRepCheck_Analyzer(shape.wrapped, true, false, false);
-    try {
-      const mass = measureShapeVolumeProperties(shape);
-      try { if (!analyzer.IsValid() || !Number.isFinite(mass.volume) || mass.volume <= 1e-10) throw new Error('STEP: el sólido no es válido o tiene volumen nulo.'); }
-      finally { mass.delete(); }
-    } finally { analyzer.delete(); }
-    const owned = shape; shape = null; return owned;
-  } finally {
-    shape?.delete(); raw?.delete(); reader.delete();
-    try { oc.FS.unlink(path); } catch { /* write/read failures can precede creation */ }
-  }
+    const analyzer = owners.own(new oc.BRepCheck_Analyzer(shape.wrapped, true, false, false));
+    const mass = owners.own(measureShapeVolumeProperties(shape));
+    if (!analyzer.IsValid() || !Number.isFinite(mass.volume) || mass.volume <= 1e-10) throw new Error('STEP: el sólido no es válido o tiene volumen nulo.');
+    return shape;
+  }, shape => [shape], 'STEP solid import or native/file release failed.');
 }

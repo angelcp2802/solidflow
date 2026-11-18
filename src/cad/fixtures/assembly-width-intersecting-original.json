@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "native-width-intersecting-original",
+  "revision": "a1",
+  "name": "Original intersecting width planes",
+  "units": "mm",
+  "createdAt": "2026-10-21T00:00:00.000Z",
+  "updatedAt": "2026-10-21T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part", "id": "triangle-original-0", "revision": "r1",
+      "document": {
+        "version": 1, "id": "triangle-original-0", "name": "Original 8 by 3 triangular profile",
+        "units": "mm", "createdAt": "2026-10-21T00:00:00.000Z", "updatedAt": "2026-10-21T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile", "name": "Triangle", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+            "profile": {
+              "kind": "entities",
+              "points": [{"id": "a", "x": -4, "y": 0}, {"id": "b", "x": 4, "y": 0}, {"id": "c", "x": 0, "y": 3}],
+              "entities": [
+                {"id": "edge-0", "type": "line", "start": "a", "end": "b", "construction": false},
+                {"id": "edge-1", "type": "line", "start": "b", "end": "c", "construction": false},
+                {"id": "edge-2", "type": "line", "start": "c", "end": "a", "construction": false}
+              ],
+              "constraints": []
+            }
+          },
+          {
+            "id": "solid", "name": "Prism", "type": "extrude", "sketchId": "profile", "depth": 4, "symmetric": false,
+            "suppressed": false, "bodyOperation": {"mode": "new", "bodyId": "box"}
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part", "id": "triangle-original-1", "revision": "r1",
+      "document": {
+        "version": 1, "id": "triangle-original-1", "name": "Original 6 by 4 triangular profile",
+        "units": "mm", "createdAt": "2026-10-21T00:00:00.000Z", "updatedAt": "2026-10-21T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile", "name": "Triangle", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+            "profile": {
+              "kind": "entities",
+              "points": [{"id": "a", "x": -3, "y": 0}, {"id": "b", "x": 3, "y": 0}, {"id": "c", "x": 0, "y": 4}],
+              "entities": [
+                {"id": "edge-0", "type": "line", "start": "a", "end": "b", "construction": false},
+                {"id": "edge-1", "type": "line", "start": "b", "end": "c", "construction": false},
+                {"id": "edge-2", "type": "line", "start": "c", "end": "a", "construction": false}
+              ],
+              "constraints": []
+            }
+          },
+          {
+            "id": "solid", "name": "Prism", "type": "extrude", "sketchId": "profile", "depth": 4, "symmetric": false,
+            "suppressed": false, "bodyOperation": {"mode": "new", "bodyId": "box"}
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "a", "name": "Anchura", "definition": {"id": "triangle-original-0", "revision": "r1"},
+      "pose": {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1]},
+      "fixed": true, "visible": true, "suppressed": false
+    },
+    {
+      "id": "b", "name": "Pestaña", "definition": {"id": "triangle-original-1", "revision": "r1"},
+      "pose": {"translation": [3, 0, 0], "rotation": [0, 0, 0.1345903110073483, 0.9909013312045479]},
+      "fixed": false, "visible": true, "suppressed": false
+    }
+  ],
+  "mates": []
+}

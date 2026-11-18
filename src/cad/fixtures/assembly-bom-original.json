@@ -1,0 +1,63 @@
+{
+  "version": 2, "kind": "assembly", "id": "original-bom", "revision": "r1",
+  "name": "Original reusable BOM assembly", "units": "mm",
+  "createdAt": "2026-10-16T00:00:00.000Z", "updatedAt": "2026-10-16T00:00:00.000Z",
+  "definitions": [
+    { "kind": "part", "id": "bom-part", "revision": "r1", "document": {
+      "version": 1, "id": "bom-part", "name": "Pieza \"común\", estándar", "units": "mm",
+      "createdAt": "2026-10-16T00:00:00.000Z", "updatedAt": "2026-10-16T00:00:00.000Z",
+      "features": [
+        { "id": "profile", "name": "Original square", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+          "profile": { "kind": "rectangle", "center": [0, 0], "width": 4, "height": 4 } },
+        { "id": "create", "name": "Original cube", "type": "extrude", "sketchId": "profile", "depth": 4,
+          "symmetric": false, "suppressed": false, "bodyOperation": { "mode": "new", "bodyId": "part-body" } }
+      ]
+    } },
+    { "kind": "part", "id": "bom-small", "revision": "r1", "document": {
+      "version": 1, "id": "bom-small", "name": "=SUM(1,2)", "units": "mm",
+      "createdAt": "2026-10-16T00:00:00.000Z", "updatedAt": "2026-10-16T00:00:00.000Z",
+      "features": [
+        { "id": "profile", "name": "Original small square", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+          "profile": { "kind": "rectangle", "center": [0, 0], "width": 2, "height": 2 } },
+        { "id": "create", "name": "Original small cube", "type": "extrude", "sketchId": "profile", "depth": 2,
+          "symmetric": false, "suppressed": false, "bodyOperation": { "mode": "new", "bodyId": "small-body" } }
+      ]
+    } },
+    { "kind": "part", "id": "bom-part", "revision": "r2", "document": {
+      "version": 1, "id": "bom-part", "name": "Pieza \"común\", estándar", "units": "mm",
+      "createdAt": "2026-10-16T00:00:00.000Z", "updatedAt": "2026-10-16T00:00:00.000Z",
+      "features": [
+        { "id": "profile", "name": "Original wider rectangle", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+          "profile": { "kind": "rectangle", "center": [0, 0], "width": 6, "height": 4 } },
+        { "id": "create", "name": "Original wider box", "type": "extrude", "sketchId": "profile", "depth": 4,
+          "symmetric": false, "suppressed": false, "bodyOperation": { "mode": "new", "bodyId": "part-body" } }
+      ]
+    } },
+    { "kind": "assembly", "id": "bom-group", "revision": "g1", "name": "Conjunto reutilizable",
+      "createdAt": "2026-10-16T00:00:00.000Z", "updatedAt": "2026-10-16T00:00:00.000Z", "mates": [],
+      "occurrences": [
+        { "id": "p-a", "name": "Pieza A", "definition": { "id": "bom-part", "revision": "r1" },
+          "pose": { "translation": [-6, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": true, "suppressed": false, "visible": true },
+        { "id": "p-b", "name": "Pieza B", "definition": { "id": "bom-part", "revision": "r1" },
+          "pose": { "translation": [6, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": true, "suppressed": false, "visible": true },
+        { "id": "q", "name": "Pieza pequeña", "definition": { "id": "bom-small", "revision": "r1" },
+          "pose": { "translation": [0, 6, 0], "rotation": [0, 0, 0, 1] }, "fixed": true, "suppressed": false, "visible": true }
+      ]
+    },
+    { "kind": "part", "id": "bom-unused", "revision": "r1", "document": {
+      "version": 1, "id": "bom-unused", "name": "Original unused definition", "units": "mm", "features": [],
+      "createdAt": "2026-10-16T00:00:00.000Z", "updatedAt": "2026-10-16T00:00:00.000Z"
+    } }
+  ],
+  "occurrences": [
+    { "id": "g-a", "name": "Conjunto A", "definition": { "id": "bom-group", "revision": "g1" },
+      "pose": { "translation": [0, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": false, "suppressed": false, "visible": true },
+    { "id": "g-b", "name": "Conjunto B oculto", "definition": { "id": "bom-group", "revision": "g1" },
+      "pose": { "translation": [40, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": false, "suppressed": false, "visible": false },
+    { "id": "g-s", "name": "Conjunto suprimido", "definition": { "id": "bom-group", "revision": "g1" },
+      "pose": { "translation": [80, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": false, "suppressed": true, "visible": true },
+    { "id": "p-r2", "name": "Pieza revisión dos", "definition": { "id": "bom-part", "revision": "r2" },
+      "pose": { "translation": [20, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": false, "suppressed": false, "visible": true }
+  ],
+  "mates": []
+}

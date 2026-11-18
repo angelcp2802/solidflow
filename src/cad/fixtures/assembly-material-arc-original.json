@@ -1,0 +1,84 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-material-arc-original",
+  "revision": "r1",
+  "name": "Original radius-2 quarter-sector material arc",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "original-quarter-sector",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "original-quarter-sector",
+        "name": "Original circular sector R2 depth4",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original quarter-circle and two radii",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "entities",
+              "points": [
+                { "id": "center", "x": 3, "y": -2 },
+                { "id": "start", "x": 5, "y": -2 },
+                { "id": "end", "x": 3, "y": 0 }
+              ],
+              "entities": [
+                { "id": "radial-start", "type": "line", "start": "center", "end": "start", "construction": false },
+                { "id": "quarter-arc", "type": "arc", "center": "center", "start": "start", "end": "end", "clockwise": false, "construction": false },
+                { "id": "radial-end", "type": "line", "start": "end", "end": "center", "construction": false }
+              ],
+              "constraints": [
+                { "id": "fix-center", "type": "fix", "pointId": "center", "x": 3, "y": -2 },
+                { "id": "fix-start", "type": "fix", "pointId": "start", "x": 5, "y": -2 },
+                { "id": "fix-end", "type": "fix", "pointId": "end", "x": 3, "y": 0 }
+              ]
+            }
+          },
+          {
+            "id": "solid",
+            "name": "Original four-mm sector extrusion",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": { "mode": "new", "bodyId": "sector" }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "a",
+      "name": "Original sector A",
+      "definition": { "id": "original-quarter-sector", "revision": "r1" },
+      "pose": { "translation": [0, 0, 0], "rotation": [0, 0, 0, 1] },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "b",
+      "name": "Original sector B",
+      "definition": { "id": "original-quarter-sector", "revision": "r1" },
+      "pose": { "translation": [0, 0, 0], "rotation": [0, 0, 0, 1] },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": []
+}

@@ -50,6 +50,8 @@ const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 function fail(message: string): never { throw new Error(`Identidad de prisma v2: ${message}`); }
 const FACE_KEY = /^face-v2\|[0-9a-f]{64}$/;
 const EDGE_KEY = /^edge-v2\|[0-9a-f]{64}$/;
+/** Exact digest shape emitted by the body-scoped v1 catalog. Older opaque v1 documents remain readable. */
+export const isBodyCatalogFaceKey = (value: unknown): boolean => typeof value === 'string' && value.length === 72 && /^face-v1\|[a-f0-9]{64}$/.test(value);
 export const isFaceReferenceKeyV2 = (value: unknown): boolean => typeof value === 'string' && value.length === 72 && FACE_KEY.test(value);
 export const isEdgeReferenceKeyV2 = (value: unknown): boolean => typeof value === 'string' && value.length === 72 && EDGE_KEY.test(value);
 

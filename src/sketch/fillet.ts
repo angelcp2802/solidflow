@@ -207,7 +207,7 @@ function keepSourceCorner(
     put({ type: "coincident", a: oldCorners[0], b: oldCorners[1] });
 }
 
-function curve(entity: SourceEntity, points: Map<string, SketchPoint>): Curve {
+function curve(entity: SourceEntity, points: Map<string, SketchPoint>, radialTolerance = FILLET_TOLERANCE): Curve {
   const start = points.get(entity.start)!,
     end = points.get(entity.end)!;
   if (entity.type === "line") {
@@ -226,7 +226,7 @@ function curve(entity: SourceEntity, points: Map<string, SketchPoint>): Curve {
     radius = distance(center, start);
   if (
     radius < MIN_LENGTH ||
-    Math.abs(distance(center, end) - radius) > FILLET_TOLERANCE ||
+    Math.abs(distance(center, end) - radius) > radialTolerance ||
     distance(start, end) < MIN_LENGTH
   )
     throw new Error(
@@ -554,6 +554,7 @@ function retainedEndCriticalRadius(
   currentLoci: [Locus, Locus],
   sourceIndex: number,
   side: number,
+  limits: { minimum: number; maximum: number } = { minimum: SKETCH_LIMITS.minDimension, maximum: SKETCH_LIMITS.maxDimension },
 ): number | undefined {
   const source = cs[sourceIndex];
   if (source.entity.type !== "arc") return undefined;
@@ -584,8 +585,8 @@ function retainedEndCriticalRadius(
   const radius = numerator / denominator;
   if (
     !Number.isFinite(radius) ||
-    radius < SKETCH_LIMITS.minDimension ||
-    radius > SKETCH_LIMITS.maxDimension
+    radius < limits.minimum ||
+    radius > limits.maximum
   )
     return undefined;
   const criticalLoci = cs.map((c, i) =>
@@ -612,9 +613,10 @@ function radiusFamily(
   currentLoci: [Locus, Locus],
   side: number,
   radius: number,
+  limits: { minimum: number; maximum: number } = { minimum: SKETCH_LIMITS.minDimension, maximum: SKETCH_LIMITS.maxDimension },
 ): number {
   return cs.reduce((mask, _, i) => {
-    const critical = retainedEndCriticalRadius(cs, corner, currentLoci, i, side);
+    const critical = retainedEndCriticalRadius(cs, corner, currentLoci, i, side, limits);
     return critical !== undefined && radius > critical ? mask | (1 << i) : mask;
   }, 0);
 }
@@ -623,6 +625,8 @@ function candidates(
   cs: [Curve, Curve],
   corners: Corner[],
   r: number,
+  limits: { minimum: number; maximum: number; coordinate: number } = {
+    minimum: SKETCH_LIMITS.minDimension, maximum: SKETCH_LIMITS.maxDimension, coordinate: SKETCH_LIMITS.maxCoordinate },
 ): Candidate[] {
   const result: Candidate[] = [];
   for (const corner of corners)
@@ -639,7 +643,7 @@ function candidates(
                 !Number.isFinite(point.x) ||
                 !Number.isFinite(point.y) ||
                 Math.max(Math.abs(point.x), Math.abs(point.y)) >
-                  SKETCH_LIMITS.maxCoordinate,
+                  limits.coordinate,
             )
           )
             continue;
@@ -673,7 +677,7 @@ function candidates(
               2 +
             hit.side;
           const index =
-            physicalIndex + 72 * radiusFamily(cs, corner, [a, b], hit.side, r);
+            physicalIndex + 72 * radiusFamily(cs, corner, [a, b], hit.side, r, limits);
           if (result.some((candidate) => candidate.index === index)) continue;
           const sweep = wrap(
             sign *
@@ -733,6 +737,61 @@ function defaultCandidate(possible: Candidate[]): Candidate | undefined {
       "Varias ramas tienen el mismo desplazamiento; elige una solución explícita.",
     );
   return closest[0];
+}
+
+/** Already-resolved analytic sources, directed into and out of one common corner. */
+export type FilletCornerSource = {
+  id: string;
+  start: XY;
+  end: XY;
+} & ({ type: "line" } | { type: "arc"; center: XY; clockwise: boolean });
+
+export interface FilletCornerGeometry {
+  center: XY;
+  contacts: [XY, XY];
+  clockwise: boolean;
+  /** Stable physical locus/intersection family; continuous radius is not identity. */
+  branchIndex: number;
+  branches: [TangentBranch, TangentBranch];
+}
+
+/**
+ * Pure transient corner geometry. It reuses the sketch tool's analytic loci and
+ * branch selection without allocating sketch IDs/constraints or solving/editing
+ * a profile. The wider bounds apply only to internal derived CAD geometry.
+ */
+export function resolveTrimmedCornerFillet(first: FilletCornerSource, second: FilletCornerSource,
+  radius: number, clockwise: boolean, joinTolerance: number): FilletCornerGeometry {
+  const limits = { minimum: MIN_LENGTH, maximum: 200_000, coordinate: 2_000_000 };
+  if (!Number.isFinite(radius) || radius < limits.minimum || radius > limits.maximum
+    || !Number.isFinite(joinTolerance) || joinTolerance <= 0 || joinTolerance > .01) {
+    throw new Error("El redondeo automático requiere un radio y una tolerancia geométrica válidos.");
+  }
+  if (!first.id || !second.id || first.id === second.id
+    || distance(first.end, second.start) > joinTolerance) {
+    throw new Error("El redondeo automático requiere dos tramos distintos unidos por una esquina.");
+  }
+  const sources = [first, second].map((source, index) => {
+    const values = [source.start, source.end, ...(source.type === "arc" ? [source.center] : [])];
+    if (values.some(point => ![point.x, point.y].every(Number.isFinite)
+      || Math.max(Math.abs(point.x), Math.abs(point.y)) > limits.coordinate)) {
+      throw new Error("La esquina del redondeo automático contiene coordenadas no válidas.");
+    }
+    const prefix = `derived-corner-${index}`, start = { ...source.start, id: prefix + "-start" },
+      end = { ...source.end, id: prefix + "-end" };
+    const points = new Map<string, SketchPoint>([[start.id, start], [end.id, end]]);
+    if (source.type === "line") return curve({ id: source.id, type: "line", start: start.id, end: end.id, construction: false }, points);
+    const center = { ...source.center, id: prefix + "-center" }; points.set(center.id, center);
+    return curve({ id: source.id, type: "arc", start: start.id, end: end.id, center: center.id,
+      clockwise: source.clockwise, construction: false }, points, 2 * joinTolerance);
+  }) as [Curve, Curve];
+  const possible = candidates(sources, [{ point: { ...first.end }, ends: ["end", "start"] }], radius, limits)
+    .filter(candidate => candidate.clockwise === clockwise
+      && candidate.sourceEdits.every(edit => edit.movement !== "extend"));
+  const chosen = defaultCandidate(possible);
+  if (!chosen) throw new Error("La esquina no admite un redondeo tangente de ese radio dentro de sus tramos.");
+  return { center: { ...chosen.center }, contacts: chosen.contacts.map(point => ({ ...point })) as [XY, XY],
+    clockwise: chosen.clockwise, branchIndex: chosen.index, branches: [...chosen.branches] };
 }
 
 function select(

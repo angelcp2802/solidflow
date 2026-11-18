@@ -1,114 +1,11 @@
-/** A deliberately bounded Part 21 unit gate, not an EXPRESS schema validator.
- * Strings/comments cannot introduce entities; only referenced 3D representation
- * contexts supply length units. Native STEP transfer remains a separate check. */
-const MAX_TOKENS = 600_000, MAX_RECORDS = 100_000, MAX_DEPTH = 32;
-type Token = { kind: 'word' | 'ref' | 'number' | 'enum' | 'string' | 'punct'; text: string };
-type Ref = { ref: string };
-type Call = { name: string; args: Value[] };
-type Value = Ref | Call | Value[] | number | string;
-type RecordEntity = { components: Call[]; refs: string[] };
+import { parseStepPart21, isStepRef as isRef, isStepCall as isCall, type StepRecord as RecordEntity } from './kernel.step-part21';
+const MAX_DEPTH = 32;
 function invalid(message: string): never { throw new Error(`STEP: ${message}`); }
-
-function tokenize(text: string): Token[] {
-  const tokens: Token[] = [];
-  for (let i = 0; i < text.length;) {
-    if (/\s/.test(text[i])) { i++; continue; }
-    if (text.startsWith('/*', i)) {
-      const end = text.indexOf('*/', i + 2);
-      if (end < 0) invalid('comentario sin cerrar.');
-      i = end + 2; continue;
-    }
-    if (text[i] === "'" || text[i] === '"') {
-      const quote = text[i++]; let closed = false;
-      while (i < text.length) {
-        if (text[i++] !== quote) continue;
-        if (quote === "'" && text[i] === quote) { i++; continue; }
-        closed = true; break;
-      }
-      if (!closed) invalid('literal sin cerrar.');
-      tokens.push({ kind: 'string', text: '' });
-    } else {
-      const tail = text.slice(i), match = /^(#[0-9]+|\.[A-Za-z_][A-Za-z_0-9]*\.|[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[Ee][+-]?[0-9]+)?|[A-Za-z_][A-Za-z_0-9-]*|[()=,;*$])/.exec(tail);
-      if (!match) invalid('símbolo o sección no admitidos.');
-      const value = match[0]; i += value.length;
-      const kind = value[0] === '#' ? 'ref' : /^[A-Za-z_]/.test(value) ? 'word' : /^\.[A-Za-z_]/.test(value) ? 'enum'
-        : /^[+\-0-9.]/.test(value) ? 'number' : 'punct';
-      tokens.push({ kind, text: value.toUpperCase() });
-    }
-    if (tokens.length > MAX_TOKENS) invalid('supera el límite de 600.000 tokens.');
-  }
-  return tokens;
-}
-function reference(token: Token): string {
-  const number = Number(token.text.slice(1));
-  if (!Number.isSafeInteger(number) || number < 1) invalid('identificador de entidad no válido.');
-  return String(number);
-}
-function isRef(value: Value | undefined): value is Ref { return !!value && typeof value === 'object' && !Array.isArray(value) && 'ref' in value; }
-function isCall(value: Value | undefined): value is Call { return !!value && typeof value === 'object' && !Array.isArray(value) && 'name' in value; }
-
-function parse(text: string): Map<string, RecordEntity> {
-  const tokens = tokenize(text), records = new Map<string, RecordEntity>(); let index = 0;
-  const next = () => tokens[index++];
-  const expect = (text: string) => { if (next()?.text !== text) invalid(`estructura Part 21 no admitida; se esperaba ${text}.`); };
-  const value = (depth: number, refs: string[]): Value => {
-    if (depth > MAX_DEPTH) invalid('supera la profundidad máxima de 32.');
-    const token = next(); if (!token) invalid('archivo incompleto.');
-    if (token.kind === 'ref') { const ref = reference(token); refs.push(ref); return { ref }; }
-    if (token.kind === 'number') { const n = Number(token.text); if (!Number.isFinite(n)) invalid('número no finito.'); return n; }
-    if (token.kind === 'string') return '';
-    if (token.kind === 'enum' || token.text === '$' || token.text === '*') return token.text;
-    if (token.text === '(') return args(depth + 1, refs);
-    if (token.kind === 'word') { expect('('); return { name: token.text, args: args(depth + 1, refs) }; }
-    return invalid('parámetro Part 21 no admitido.');
-  };
-  const args = (depth: number, refs: string[]): Value[] => {
-    if (depth > MAX_DEPTH) invalid('supera la profundidad máxima de 32.');
-    const out: Value[] = [];
-    if (tokens[index]?.text === ')') { index++; return out; }
-    while (true) {
-      out.push(value(depth, refs));
-      const separator = next()?.text;
-      if (separator === ')') return out;
-      if (separator !== ',') invalid('lista Part 21 no válida.');
-    }
-  };
-  expect('ISO-10303-21'); expect(';'); expect('HEADER'); expect(';');
-  while (tokens[index]?.text !== 'ENDSEC') {
-    if (tokens[index]?.kind !== 'word') invalid('cabecera Part 21 no válida.');
-    value(0, []); expect(';');
-  }
-  expect('ENDSEC'); expect(';'); expect('DATA'); expect(';');
-  while (tokens[index]?.text !== 'ENDSEC') {
-    const idToken = next(); if (idToken?.kind !== 'ref') invalid('se requiere una entidad DATA o ENDSEC.');
-    const id = reference(idToken); if (records.has(id)) invalid('identificadores de entidad duplicados.');
-    expect('='); const components: Call[] = [], refs: string[] = [];
-    if (tokens[index]?.text === '(') {
-      index++;
-      while (tokens[index]?.text !== ')') {
-        const component = value(0, refs); if (!isCall(component)) invalid('entidad compleja no válida.');
-        components.push(component);
-      }
-      expect(')');
-    } else {
-      const component = value(0, refs); if (!isCall(component)) invalid('entidad no válida.');
-      components.push(component);
-    }
-    if (!components.length || new Set(components.map(c => c.name)).size !== components.length) invalid('componentes vacíos o duplicados.');
-    if (components.some(c => c.name.includes('EXTERNAL') || c.name === 'DOCUMENT_FILE')) invalid('las referencias a archivos externos no están admitidas.');
-    expect(';'); records.set(id, { components, refs });
-    if (records.size > MAX_RECORDS) invalid('supera el límite de 100.000 entidades.');
-  }
-  expect('ENDSEC'); expect(';'); expect('END-ISO-10303-21'); expect(';');
-  if (index !== tokens.length) invalid('secciones adicionales no admitidas.');
-  for (const record of records.values()) for (const ref of record.refs) if (!records.has(ref)) invalid('referencia a una entidad inexistente.');
-  return records;
-}
 
 /** Explicit supported length scales: millimeter, meter, and conversion-based inch.
  * A unit's display name is never used to determine its scale. */
 export function stepLengthUnit(bytes: Uint8Array): { millimetersPerUnit: number } {
-  const records = parse(new TextDecoder('latin1').decode(bytes));
+  const { records } = parseStepPart21(bytes, { textEncoding: 'latin1' });
   const get = (id: string) => records.get(id) ?? invalid('referencia de unidades inexistente.');
   const component = (record: RecordEntity, name: string) => record.components.find(c => c.name === name);
   const lengthScale = (id: string, visited = new Set<string>()): number => {
@@ -141,7 +38,7 @@ export function stepLengthUnit(bytes: Uint8Array): { millimetersPerUnit: number 
     if (rep.name !== 'REPRESENTATION' && !rep.name.endsWith('_REPRESENTATION')) continue;
     // These entities relate a definition to a representation. Their final
     // argument is the representation itself, never a geometric context.
-    if (['SHAPE_DEFINITION_REPRESENTATION', 'PROPERTY_DEFINITION_REPRESENTATION', 'MATERIAL_PROPERTY_REPRESENTATION'].includes(rep.name)) continue;
+    if (['SHAPE_DEFINITION_REPRESENTATION', 'PROPERTY_DEFINITION_REPRESENTATION', 'MATERIAL_PROPERTY_REPRESENTATION', 'CONTEXT_DEPENDENT_SHAPE_REPRESENTATION'].includes(rep.name)) continue;
     // Complex entities may carry the arguments on REPRESENTATION alone.
     if (!rep.args.length && component(record, 'REPRESENTATION')) continue;
     const contextRef = rep.args.at(-1);

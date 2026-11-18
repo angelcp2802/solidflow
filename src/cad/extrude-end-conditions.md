@@ -10,10 +10,20 @@ Implementación: `kernel.extrusion-limits.ts`, integrada en `kernel.engine.ts`. 
 type ExtrudeEndCondition =
   | { kind: 'throughAll'; baseFeatureId: string; bothDirections: boolean }
   | { kind: 'untilNext'; baseFeatureId: string }
-  | { kind: 'upToSurface'; target: PlaneSupport };
+  | { kind: 'upToSurface'; target: PlaneSupport; offset?: SurfaceOffset };
+
+type SurfaceOffset =
+  | { construction: 'normal'; signedDistanceMm: number }
+  | { construction: 'translation'; translationWorldMm: Vec3 };
 ```
 
 `PlaneSupport` identifica un plano principal, un plano de referencia histórico o una cara histórica mediante `FaceReference`. Una cara curva puede ser un destino, aunque no pueda apoyar un croquis plano. Hasta una superficie puede ser la primera extrusión si el destino es un plano anterior.
+
+El campo opcional `offset` se aplica al destino resuelto de cada dirección. La distancia normal sigue la orientación del plano o de la cara histórica. El vector de traslación usa los ejes del documento, incluso bajo reflexión. Cada componente admite valores finitos de −1.000.000 a +1.000.000 mm, el intervalo de coordenadas del documento. La ausencia mantiene la declaración y el linaje anteriores. Un cero explícito conserva la construcción elegida. Los lectores anteriores que validan los campos rechazan un archivo que contiene la extensión.
+
+Los destinos planos admiten las dos construcciones. La traslación de una cara curva conserva el recorte nativo. El desplazamiento normal de caras curvas sigue pendiente de construir y validar superficies paralelas. En regeneración, la colocación de cada soporte sigue su propia política de referencia.
+
+En el editor de extrusión, cada dirección con «Hasta superficie» muestra «Desplazamiento del límite»: sin desplazamiento, distancia normal o traslación X, Y, Z. Los valores usan mm; el signo normal sigue el soporte y la traslación usa los ejes del documento. Cambiar la construcción reinicia sus valores a cero. Elegir «Sin desplazamiento» quita el campo opcional. Los borradores numéricos vacíos o fuera de rango permanecen editables, con un error y Aceptar desactivado; nunca se admiten como una condición guardada. Un destino curvo con distancia normal requiere corregir el modo o el destino antes de aceptar.
 
 Las condiciones automáticas quedan ancladas a la operación sólida anterior indicada por `baseFeatureId`. Si esa operación está suprimida, se omite la operación dependiente con aviso; si existe otro cuerpo activo en su lugar, se exige recuperar la base. La supresión del plano/cara destino también se propaga. Las caras perdidas o ambiguas producen un error y bloquean la exportación.
 

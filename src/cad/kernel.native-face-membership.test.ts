@@ -5,7 +5,7 @@ import type { TopoDS_Shape } from 'replicad-opencascadejs';
 import { getOC, makeBox, measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC,
   type Face, type Shape3D } from 'replicad';
 import { beforeAll, expect, it, vi } from 'vitest';
-import { bodyBoolean, copyBodyShape, validateBodyShape } from './kernel.bodies';
+import { bodyBoolean, copyBodyShape, copyBodyWithFaces, validateBodyShape } from './kernel.bodies';
 import { countNativeFaceOccurrences } from './kernel.native-face-membership';
 import { NativeCleanupError, NativeOwners, withNativeOwners, type NativeOwner } from './kernel.native-ownership';
 import type { Vec3 } from './kernel.types';
@@ -374,3 +374,18 @@ for (const afterInsertion of [false, true]) it('preserves a received Current reg
     expect(currentRelease).toHaveBeenCalledTimes(1); expect(explorerRelease).toHaveBeenCalledTimes(1);
     assertBorrowedHealthy(value);
   }), 60_000);
+
+it('transfers the oriented bottom to the deep copy using native modification history', () => withNativeOwners(owners => {
+  const value = fixture(owners), decoy = fixture(owners);
+  const { shape, faces: [face] } = copyBodyWithFaces(value.body, [value.face]);
+  owners.own(shape); owners.own(face);
+  expectBox(shape); expectBottom(face);
+  expect(countNativeFaceOccurrences(shape.wrapped, face.wrapped, true)).toBe(1);
+  expect(countNativeFaceOccurrences(value.body.wrapped, face.wrapped)).toBe(0);
+  expect(countNativeFaceOccurrences(shape.wrapped, value.face.wrapped)).toBe(0);
+  expect(() => copyBodyWithFaces(value.body, [decoy.face])).toThrow(/exactly once/);
+  expect(() => copyBodyWithFaces(value.body, [value.face, value.face])).toThrow(/duplicada/);
+  const reversed = owners.own(value.face.wrapped.Reversed());
+  expect(() => countNativeFaceOccurrences(value.body.wrapped, reversed, true)).toThrow(/orientation/);
+  assertBorrowedHealthy(value); assertBorrowedHealthy(decoy);
+}), 60_000);

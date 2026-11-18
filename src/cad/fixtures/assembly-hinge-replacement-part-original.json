@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "id": "original-hinge-replacement-leaf",
+  "name": "Original drilled hinge leaf H6",
+  "units": "mm",
+  "createdAt": "2026-10-23T00:00:00.000Z",
+  "updatedAt": "2026-10-23T00:00:00.000Z",
+  "features": [
+    {
+      "id": "profile",
+      "name": "Original leaf rectangle",
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "suppressed": false,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          4,
+          0
+        ],
+        "width": 12,
+        "height": 4
+      }
+    },
+    {
+      "id": "base",
+      "name": "Original four mm leaf",
+      "type": "extrude",
+      "sketchId": "profile",
+      "depth": 6,
+      "symmetric": false,
+      "suppressed": false,
+      "bodyOperation": {
+        "mode": "new",
+        "bodyId": "original-hinge-body"
+      }
+    },
+    {
+      "id": "hole-profile",
+      "name": "Original hinge axis circle",
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "suppressed": false,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          0,
+          0
+        ],
+        "radius": 1
+      }
+    },
+    {
+      "id": "hole",
+      "name": "Original through hole",
+      "type": "cut",
+      "sketchId": "hole-profile",
+      "depth": 6,
+      "symmetric": false,
+      "suppressed": false,
+      "bodyScope": [
+        {
+          "bodyId": "original-hinge-body",
+          "sourceFeatureId": "base"
+        }
+      ]
+    }
+  ]
+}

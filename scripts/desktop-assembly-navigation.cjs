@@ -1,0 +1,104 @@
+'use strict';
+const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
+
+// Navigation through application controls only. This never sets React state,
+// unhides a panel, changes intent, or supplies CAD results. Tree controls may
+// scroll their actual mounted target into view before interaction.
+function withNavigation(context) {
+  if (context.assemblyNavigation) return context;
+  // The mixed origin-axis fixture retains its separate configured navigator.
+  if (context.configured) return { ...context, assemblyNavigation: { panel: async () => {}, reveal: async () => {}, button: async () => {} } };
+  const page = context.page || ((fn, ...args) => context.evaluate('(' + fn.toString() + ')(' + args.map(value =>
+    'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')'));
+  const ribbon = require('./desktop-assembly-ribbon-navigation.cjs')({ configured: false, page, waitFor: context.waitFor, pointer: context.pointer });
+  const tree = require('./desktop-assembly-tree-navigation.cjs')({ page, waitFor: context.waitFor, pointer: context.pointer });
+  async function panel(name) {
+    const target = await page(name => {
+      if (!document.querySelector('.assembly-classic-workspace')) return null;
+      const tab = document.querySelector('#assembly-tab-' + name), panel = document.querySelector('#assembly-panel-' + name);
+      if (!tab || !panel || tab.disabled) throw Error('Actual assembly manager tab absent: ' + name);
+      if (tab.getAttribute('aria-selected') === 'true' && !panel.hidden) return null;
+      const rect = tab.getBoundingClientRect(), x = rect.x + rect.width / 2, y = rect.y + rect.height / 2;
+      if (rect.width <= 0 || rect.height <= 0 || x < 0 || y < 0 || x >= innerWidth || y >= innerHeight || !tab.contains(document.elementFromPoint(x, y)))
+        throw Error('Assembly manager tab is not pointer reachable: ' + name);
+      return { x, y };
+    }, name);
+    if (!target) return;
+    if (context.pointer) {
+      await context.pointer('mouseMoved', target);
+      await context.pointer('mousePressed', target, 1);
+      await context.pointer('mouseReleased', target, 0);
+    } else {
+      // Subflows without pointer transport retain their existing scripted UI route.
+      await page(name => document.querySelector('#assembly-tab-' + name).click(), name);
+    }
+    await context.waitFor('actual assembly manager reveals ' + name, () => page(name => {
+      const tab = document.querySelector('#assembly-tab-' + name), panel = document.querySelector('#assembly-panel-' + name);
+      return tab?.getAttribute('aria-selected') === 'true' && panel?.hidden === false && getComputedStyle(panel).display !== 'none';
+    }, name));
+    // openManager schedules its scrollIntoView/focus in RAF after selecting the
+    // panel. Visible/selected alone can precede that scroll. Drain that real
+    // callback before any subsequent target reveal, wheel or coordinate sample.
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+    await context.waitFor('assembly manager remains revealed after its focus frame: ' + name, () => page(name => {
+      const tab = document.querySelector('#assembly-tab-' + name), panel = document.querySelector('#assembly-panel-' + name);
+      return tab?.getAttribute('aria-selected') === 'true' && panel?.hidden === false && getComputedStyle(panel).display !== 'none';
+    }, name));
+  }
+  async function reveal(selector, text = '') {
+    await ribbon.reveal(selector, text);
+    const owner = await page((selector, text) => {
+      const elements = [...document.querySelectorAll(selector)].filter(value => text === '' || value.textContent.trim() === text);
+      if (elements.length !== 1) throw Error('Exact navigation target required: ' + selector + (text === '' ? '' : ' / ' + text));
+      const panel = elements[0].closest('[role="tabpanel"][id^="assembly-panel-"]');
+      return { panel: panel?.id.slice('assembly-panel-'.length) ?? null, tree: !!elements[0].closest('[role="tree"]') };
+    }, selector, text);
+    if (owner.panel) await panel(owner.panel);
+    if (owner.tree) await tree.reveal(selector, text);
+    const closedOrigins = await page((selector, text) => {
+      const elements = [...document.querySelectorAll(selector)].filter(value => text === '' || value.textContent.trim() === text);
+      const origins = elements[0]?.closest('#assembly-relation-origins');
+      return !!origins && !origins.open && !elements[0].closest('summary');
+    }, selector, text);
+    if (closedOrigins) {
+      if (!context.pointer) throw Error('Origin disclosure requires the real pointer transport');
+      await page(() => {
+        const summary = document.querySelector('#assembly-relation-origins > summary[aria-label="Mostrar referencias de origen"]');
+        if (!summary || summary.closest('[hidden]')) throw Error('Visible origin disclosure required');
+        summary.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+      });
+      const inspect = () => page(() => {
+        const e = document.querySelector('#assembly-relation-origins > summary'), r = e?.getBoundingClientRect();
+        if (!e || !r) throw Error('Origin disclosure disappeared');
+        let left = 0, right = innerWidth, top = 0, bottom = innerHeight;
+        for (let p = e.parentElement; p; p = p.parentElement) {
+          const s = getComputedStyle(p), b = p.getBoundingClientRect();
+          if (/(auto|scroll|hidden|clip)/.test(s.overflowX)) { left = Math.max(left, b.left + p.clientLeft); right = Math.min(right, b.left + p.clientLeft + p.clientWidth); }
+          if (/(auto|scroll|hidden|clip)/.test(s.overflowY)) { top = Math.max(top, b.top + p.clientTop); bottom = Math.min(bottom, b.top + p.clientTop + p.clientHeight); }
+        }
+        const point = { x: r.left + r.width / 2, y: r.top + r.height / 2 }, hit = document.elementFromPoint(point.x, point.y);
+        return { point, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom }, clip: { left, right, top, bottom },
+          visible: !e.closest('[hidden]') && r.width > 0 && r.height > 0 && r.left >= left && r.right <= right && r.top >= top && r.bottom <= bottom && !!hit && (hit === e || e.contains(hit)) };
+      });
+      let previous, since = 0;
+      const target = await context.waitFor('stationary origin disclosure summary', async () => {
+        const state = await inspect(), key = JSON.stringify(state);
+        if (key !== previous) { previous = key; since = Date.now(); }
+        return state.visible && Date.now() - since >= 120 ? state : false;
+      });
+      await context.pointer('mouseMoved', target.point);
+      if (JSON.stringify(await inspect()) !== JSON.stringify(target)) throw Error('Origin disclosure moved before activation');
+      await context.pointer('mousePressed', target.point, 1);
+      await context.pointer('mouseReleased', target.point, 0);
+      await context.waitFor('origin disclosure opens through its summary', () => page(() => document.querySelector('#assembly-relation-origins')?.open === true));
+    }
+    await page((selector, text) => {
+      const elements = [...document.querySelectorAll(selector)].filter(value => text === '' || value.textContent.trim() === text);
+      const element = elements[0];
+      if (elements.length !== 1 || element.closest('[hidden]') || !element.getClientRects().length) throw Error('Action target remains hidden or in an inactive panel: ' + selector);
+    }, selector, text);
+  }
+  const assemblyNavigation = { panel, ribbon: ribbon.tab, tree, reveal, button: (text, scope = '.assembly-app') => reveal(scope + ' button', text) };
+  return { ...context, assemblyNavigation, ...(context.click ? { click: async selector => { await reveal(selector); return context.click(selector); } } : {}) };
+}
+module.exports = { withNavigation };

@@ -4,9 +4,11 @@ import initOpenCascade from 'replicad-opencascadejs';
 import { getOC, makeBox, makeCompound, measureShapeSurfaceProperties, setOC, type Shape3D } from 'replicad';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
-  NativeBodyCatalog, type NativeBodyMetadata, type NativeBodyTransaction,
+  NativeBodyCatalog, type NativeBodyMetadata, NativeBodyTransaction,
   bodyBoolean, copyBodyShape, validateBodyShape,
 } from './kernel.bodies';
+import { captureRecipeOwnerFaces, readHistoricalRecipeFace } from './kernel.recipe-face-history';
+import { createFaceCatalog } from './kernel.faces';
 import type { BodyReference, CombineFeature } from './kernel.types';
 
 beforeAll(async () => setOC(await initOpenCascade({
@@ -326,4 +328,31 @@ describe('scoped modifications and failure preservation', () => {
     expect(() => current.catalog.stageNew(metadata({ bodyId: 'body-invalid', sourceFeatureId: 'invalid' }), duplicate)).toThrow(/exactamente un sólido/);
     unchanged(current.catalog);
   }, 60_000);
+});
+
+it('binds each captured world face to its actual transaction, owner, reconstruction, lineage and lifetime', () => {
+  const original = shape(makeBox([0, 0, 0], [10, 6, 4]));
+  const tx = proposed(catalog().stageNew(metadata(a), original)), output = NativeBodyTransaction.requireOutput(tx, a);
+  const catalogFaces = createFaceCatalog(output.shape, a.sourceFeatureId, output.lineage);
+  try {
+    const ref = catalogFaces.entries.find(item => item.frame?.normal[2] === -1)!.ref;
+    const epoch = {}, capture = captureRecipeOwnerFaces(tx, epoch, a, new Set([ref.key]));
+    shape(capture.shape);
+    try {
+      const get = (owner = a, currentEpoch = epoch, lineage = output.lineage, ownerShape = capture.shape) =>
+        readHistoricalRecipeFace(capture.lease, currentEpoch, owner, lineage, ownerShape, ref);
+      expect(get().geomType).toBe('PLANE');
+      expect(() => get(b)).toThrow();
+      expect(() => get(a, {})).toThrow();
+      expect(() => get(a, epoch, 'different')).toThrow();
+      expect(() => get(a, epoch, output.lineage, original)).toThrow();
+      expect(() => readHistoricalRecipeFace({ delete() {} }, epoch, a, output.lineage, capture.shape, ref)).toThrow();
+      committed(tx);
+      expect(() => captureRecipeOwnerFaces(tx, epoch, a, new Set([ref.key]))).toThrow();
+      expect(() => captureRecipeOwnerFaces(Object.create(NativeBodyTransaction.prototype), epoch, a, new Set([ref.key]))).toThrow();
+      expect(get().geomType).toBe('PLANE');
+      capture.lease.delete();
+      expect(() => get()).toThrow();
+    } finally { capture.lease.delete(); }
+  } finally { catalogFaces.dispose(); }
 });

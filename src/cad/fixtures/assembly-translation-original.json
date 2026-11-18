@@ -1,0 +1,41 @@
+{
+  "version": 2, "kind": "assembly", "id": "original-contact-slider", "revision": "r1",
+  "name": "Original rectilinear contact slider", "units": "mm",
+  "createdAt": "2026-10-15T00:00:00.000Z", "updatedAt": "2026-10-15T00:00:00.000Z",
+  "definitions": [
+    { "kind": "part", "id": "original-moving-cube", "revision": "r1", "document": {
+      "version": 1, "id": "original-moving-cube", "name": "Original 4 mm cube", "units": "mm",
+      "createdAt": "2026-10-15T00:00:00.000Z", "updatedAt": "2026-10-15T00:00:00.000Z",
+      "features": [
+        { "id": "profile", "name": "Original square", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+          "profile": { "kind": "rectangle", "center": [0, 0], "width": 4, "height": 4 } },
+        { "id": "create", "name": "Original cube", "type": "extrude", "sketchId": "profile", "depth": 4,
+          "symmetric": false, "suppressed": false, "bodyOperation": { "mode": "new", "bodyId": "cube-body" } }
+      ]
+    } },
+    { "kind": "part", "id": "original-thin-obstacle", "revision": "r1", "document": {
+      "version": 1, "id": "original-thin-obstacle", "name": "Original 0.5 mm obstacle", "units": "mm",
+      "createdAt": "2026-10-15T00:00:00.000Z", "updatedAt": "2026-10-15T00:00:00.000Z",
+      "features": [
+        { "id": "profile", "name": "Original narrow rectangle", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+          "profile": { "kind": "rectangle", "center": [0, 0], "width": 0.5, "height": 8 } },
+        { "id": "create", "name": "Original thin solid", "type": "extrude", "sketchId": "profile", "depth": 8,
+          "symmetric": false, "suppressed": false, "bodyOperation": { "mode": "new", "bodyId": "obstacle-body" } }
+      ]
+    } }
+  ],
+  "occurrences": [
+    { "id": "slider", "name": "Original moving slider", "definition": { "id": "original-moving-cube", "revision": "r1" },
+      "pose": { "translation": [0, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": false, "suppressed": false, "visible": true },
+    { "id": "obstacle", "name": "Original thin obstacle", "definition": { "id": "original-thin-obstacle", "revision": "r1" },
+      "pose": { "translation": [10, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": true, "suppressed": false, "visible": true }
+  ],
+  "mates": [
+    { "id": "slider-xy", "name": "Original slider XY plane", "type": "coincident", "suppressed": false, "alignment": "aligned",
+      "first": { "kind": "principal-plane", "component": { "occurrencePath": ["slider"], "definition": { "id": "original-moving-cube", "revision": "r1" } }, "plane": "XY" },
+      "second": { "kind": "principal-plane", "component": null, "plane": "XY" } },
+    { "id": "slider-xz", "name": "Original slider XZ plane", "type": "coincident", "suppressed": false, "alignment": "aligned",
+      "first": { "kind": "principal-plane", "component": { "occurrencePath": ["slider"], "definition": { "id": "original-moving-cube", "revision": "r1" } }, "plane": "XZ" },
+      "second": { "kind": "principal-plane", "component": null, "plane": "XZ" } }
+  ]
+}

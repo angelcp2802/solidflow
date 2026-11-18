@@ -32,8 +32,9 @@ ID. All references must belong to the corresponding earlier ownership history.
 allocates no body identities or instance slots. Its absence preserves the
 legacy acceptance rules. The geometry branch requires `geometryPattern:true`.
 The separate [regeneration mode](FEATURE_REGENERATION.md#saved-regeneration-mode)
-requires `mode:'regenerate'`, `geometryPattern:false`, explicit selected or
-cut-only dynamic ALL scope and no variation. An UpToSurface source requires an
+requires `mode:'regenerate'`, `geometryPattern:false` and an explicit scope.
+Dynamic ALL admits intrinsic cuts and the bounded additive Blind case. The
+selected Blind primitive case also admits depth per instance. An UpToSurface source requires an
 explicit saved principal-plane/world policy; other end-reference and placement
 choices remain pending. See the [fixed-plane fixtures](FEATURE_WORLD_LIMIT_FIXTURES.md).
 ALL saves scope routes rather than current target references. Geometry/true retains
@@ -165,13 +166,14 @@ component, integrated engine and real interaction results.
 
 Geometry replay does not complete the feature-pattern goal. Required later
 layers include broader per-instance recipes and end/start conditions, applicable
-varying-sketch constraints, exact selected dependent-feature remapping, additive
-ALL and dynamic geometry scope, an explicitly saved AUTO discovery/capture policy,
+varying-sketch constraints, exact selected dependent-feature remapping, broader
+additive ALL and dynamic geometry scope, an explicitly saved AUTO discovery/capture policy,
 nested semantic recipes
 and broader ownership lifecycle handling. A persisted selected target list is
-not dynamic all-body scope. The cut-only regenerate/ALL increment resolves the
-complete current catalog but does not activate additive ALL or AUTO; their
-pending gates are not evidence of implemented fidelity. The written nested linear-then-mirror fixture is
+not dynamic all-body scope. Regenerate/ALL resolves the complete current catalog
+for cuts and the [bounded Blind primitive additive slice](FEATURE_REGENERATION.md#blind-primitive-additive-all).
+Other positive recipes and AUTO retain their pending gates, which are not
+evidence of implemented fidelity. The written nested linear-then-mirror fixture is
 one selected-scope geometry recipe; broader nested transform/owner combinations,
 dependent-feature remapping and nested regeneration remain required evidence.
 These remain implementation and evidence gaps
