@@ -1,5 +1,96 @@
 # Validation
 
+## Distinct material choices and smoke close preservation — Windows, 2026-11-18
+
+The original three-prism catalogs at `6a65894` contained eighteen face values
+but twelve visible labels, and thirty-six LINE values but twenty-four labels.
+A test-only reproduction against its unchanged production assets failed at
+the new face-label uniqueness assertion after 298 checkpoints, with no console
+or resource errors. At `e1ce497`, build and the existing ordinary assembly
+authoring route passed 670 checkpoints. All eighteen face and thirty-six LINE
+choices had distinct labels and retained their complete component, body,
+feature and native reference identities. The route checked presentation
+ordinals, current local points and planar normals or LINE directions against
+the actual native scene for the committed document. Reading labels requested
+no CAD work. The existing relation, Cancel, history and Save/Open cases passed.
+
+Separately, `706d4d5` passed build, 11,528 unit/CAD cases, 252 IPC checks with
+two skips and the real production-loader smoke, including WASM and worker
+queue recovery. Twenty of those IPC checks use injected child events and a
+manual timer to check confirmed close, deadline failure, retained profiles and
+preservation of the primary error when cleanup also fails. They do not launch
+Electron. The real smoke retained its sandbox, readiness checks and temporary
+path guard; its compiled products and selected dependencies matched `6a65894`.
+
+These are exact local Windows source results. The aggregate 0.35.0 inventory,
+packaged native labels, nested/configured material dropdowns, installed use and
+other platforms require their own results. The earlier macOS unit SIGBUS is
+not established as resolved by the smoke launcher change.
+
+## Packaged 0.34.0 origin menus and recovered assembly — Windows, 2026-11-18
+
+Frozen source `c78c47046388c4ef7cbba2de0b6079258d044fe3`, draft head
+`d6e3fa81a35468c644d076e8792dbd3284e106e4` and hosted merge
+`a14f0cfe9429a8772b5d356e483e69d72154595c` share tree
+`72c055d0eb59d213bce1764387e9679ca40c87c9`. The exact Windows x64 source
+passed nineteen selected affected commands, including build, 11,528 unit/CAD
+cases, 232 IPC checks with two skips, desktop/WASM startup, ordinary/configured
+origin and keyboard routes, embedded properties and successive operations.
+A separate terminal audit rehashed all nineteen logs, 1,595 tracked inputs,
+nine production members and sixteen selected dependency files. This is not a
+complete 124-command run on 0.34.0. The verified continuation on the unchanged
+0.33.0 tree completed all 124 commands and retained its interrupted-run record.
+
+Physical archive inspection and REA agree on 5,273 files and 102 directories.
+The executable SHA-256 is
+`bb876d6bc9a81c5851508f550c1ed04de2bd4c49ded388e7bdf58f205282f6d1`;
+the ASAR SHA-256 is
+`c8fc5ab8c839197848ec43910de69fdb7d7d6cfd020ce2c6bbe560313b7cb964`.
+The package retains the single-thread runtime and notices and omits exactly
+three unused raw multi-thread files. Archive evidence establishes membership
+and bytes, separately from the native interactions below.
+
+The native packaged window opened the original two-solid configured example
+at 48 mm³ and 104 mm². Selecting the XY plane of `right / anchor`, focusing
+the viewport and pressing Shift+F10 opened the exact plane menu. Its owner
+action selected that occurrence. The original mixed assembly then solved at
+three solids and 2,208 mm³; Cancel restored the confirmed placements. Closing
+and restarting through the exact demo shortcut recovered the same document.
+Native Save As reproduced its original bytes, including three occurrences,
+two definitions and five mates. The guide contains 28 original models.
+
+An independent STL reader found three closed consistently wound shells:
+two at 984 mm³ and 848 mm² and one at 240 mm³ and 248 mm². Their bounds are
+respectively [-10, -6, 0] to [10, 6, 9], [25, -6, 0] to [45, 6, 9] and
+[70, 0, 0] to [80, 6, 4] mm. Totals are 2,208 mm³ and 1,944 mm². Checks use
+10⁻⁶ mm length, 10⁻⁵ mm³ volume and 10⁻⁵ mm² area tolerances.
+
+The Windows directory package is unsigned. Hosted results, disposable-system
+installation, broader platform/human acceptance and source-delivery gate #5
+remain separate. The [exact 0.34 CI](https://github.com/angelcp2802/solidflow/actions/runs/44198905481)
+and [Security](https://github.com/angelcp2802/solidflow/actions/runs/44198905534)
+run results are tracked in [#53](https://github.com/angelcp2802/solidflow/issues/53).
+
+## Named material-reference owners — Windows, 2026-11-18
+
+At `a897fd2`, the standard assembly face and LINE dropdowns identified material
+owners by saved occurrence IDs. Both dropdowns now reuse the existing full
+owner labels. Each option starts with its occurrence names, followed by the
+saved path, component kind and existing geometric description. The option
+values retain their exact native face or edge identity.
+
+The original three-prism route reads all 18 face choices and 36 LINE choices
+after naming the occurrences Base, Guía and Seguidor. It checks each displayed
+name and saved path against the occurrence and definition encoded in that
+option's value. The committed recovery and native request serial stay current.
+The route then completes its existing relation, history and Save/Open cases.
+
+The build, 79 focused unit cases and 670 basic-authoring renderer checkpoints
+passed with zero console or resource errors. The renderer used the owned hidden
+Windows x64 window at 1024 × 661 content size. Option reading and form navigation
+use the existing scripted visible controls. Nested material labels, packaged
+native interaction and other platforms retain their separate evidence.
+
 ## Configured mixed-origin keyboard context — Windows, 2026-11-17
 
 At `75da103`, the original nested configured fixture selected the Z axis of

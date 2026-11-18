@@ -692,6 +692,59 @@ module.exports = function basicAuthoringWorkflow(context) {
     await actual(picker);
     await select(selectedId);
   }
+  async function materialOwnerLabels(doc, label) {
+    const selector = 'select' + attr('aria-label', label), before = await observe();
+    await navigation.reveal(selector);
+    const choices = await page(selector => {
+      const select = document.querySelector(selector);
+      if (!select?.checkVisibility() || select.disabled) throw Error('Current enabled material selector required');
+      return [...select.options].filter(option => option.value).map(option => ({ value: option.value, label: option.textContent }));
+    }, selector);
+    check(choices.length === doc.occurrences.length * (label === 'Cara de referencia' ? 6 : 12),
+      'Original three-prism material selector retains every exact face or LINE value');
+    for (const choice of choices) {
+      const [componentKey] = JSON.parse(choice.value), [path, id, revision] = JSON.parse(componentKey);
+      const owner = doc.occurrences.find(row => path.length === 1 && row.id === path[0]);
+      check(owner && owner.definition.id === id && owner.definition.revision === revision
+        && choice.label.startsWith(owner.name + ' · ' + JSON.stringify(path) + ' · Pieza · '),
+        'Material option identifies its named occurrence and exact saved path: ' + JSON.stringify(choice));
+    }
+    check(new Set(choices.map(choice => choice.label)).size === choices.length,
+      'Every current material choice has a distinct visible label: ' + JSON.stringify(choices));
+    const nativeScene = before.assemblies.flatMap(record => {
+      const value = record.response?.ok ? record.response.value : null;
+      const candidate = value?.kind === 'assembly-scene'
+        ? { document: record.document, scene: value } : { document: value?.document, scene: value?.scene };
+      return candidate.document && canonical(candidate.document) === canonical(doc)
+        && candidate.scene?.kind === 'assembly-scene' ? [candidate.scene] : [];
+    }).at(-1);
+    check(!!nativeScene, 'Material labels use a native scene for the exact committed document');
+    const isFace = label === 'Cara de referencia';
+    const nativeChoices = nativeScene.bodies.filter(body => body.visible).flatMap(body => isFace ? body.faces : body.edges);
+    check(new Set(choices.map(choice => choice.value)).size === choices.length
+      && nativeChoices.length === choices.length, 'Material option values enumerate the exact current native catalog once');
+    for (const [index, choice] of choices.entries()) {
+      const [componentKey, bodyKey, featureId, nativeKey] = JSON.parse(choice.value);
+      const matches = nativeChoices.filter(item => {
+        const { component, body } = item.selection, reference = isFace ? item.selection.face : item.selection.edge;
+        return canonical(JSON.parse(componentKey)) === canonical([component.occurrencePath, component.definition.id, component.definition.revision])
+          && canonical(bodyKey) === canonical(body ? [body.bodyId, body.sourceFeatureId] : null)
+          && featureId === reference.sourceFeatureId && nativeKey === reference.key;
+      });
+      check(matches.length === 1, 'Material option retains its complete native component, body, feature and reference identity');
+      const support = matches[0].support, vectorText = values => values.map(value => Number(value.toPrecision(5))).join(', ');
+      check(support?.kind === (isFace ? 'plane' : 'line'), 'Original prism provides the current local planar or LINE support');
+      const direction = isFace ? support.normal : support.axis;
+      check(choice.label.includes(' · ' + (isFace ? 'Cara ' : 'Arista ') + (index + 1) + ' · ')
+        && choice.label.includes(' · (' + vectorText(support.point) + ')')
+        && choice.label.includes(' · ' + (isFace ? 'normal local' : 'dirección local') + ' (' + vectorText(direction) + ')'),
+        'Material choice shows its presentation ordinal and actual local point and direction');
+      choice.nativeSupport = structuredClone(support);
+    }
+    await recovery(doc);
+    check((await observe()).serial === before.serial, 'Reading material labels does not request CAD work');
+    checks.push({ materialReferenceOwnerLabels: { selector: label, choices } });
+  }
   async function keyboardOriginWithDraft(doc, scene) {
     const viewport = '.assembly-viewport', scope = '[aria-label="Ámbito de las relaciones"]';
     const originRef = ref('principal-plane', owners.follower, 'XY');
@@ -730,7 +783,7 @@ module.exports = function basicAuthoringWorkflow(context) {
         'Independently projected Guía face hits the current unobstructed canvas');
       await pointer('mouseMoved', point); await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
     };
-    await control(TYPE, 'distance'); await actual(role(1));
+    await control(TYPE, 'distance'); await materialOwnerLabels(doc, 'Cara de referencia'); await actual(role(1));
     await actual('.assembly-view-tools button[title="Frontal"]');
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const point = await frontalPrismPoint(0); await canvasPick(point);
@@ -1262,7 +1315,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     await origin(1, 'principal-plane', null, 'YZ', current); await origin(2, 'principal-plane', owners.guide, 'YZ', current);
     current = await apply(await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'root-plane-preview', 1, -10), 'root-plane-apply', 3, -10);
     current = await editSavedDistance(current);
-    await control(TYPE, 'parallel'); await control(NAME, 'Follower to base');
+    await control(TYPE, 'parallel'); await materialOwnerLabels(current, 'Arista de referencia'); await control(NAME, 'Follower to base');
     await origin(1, 'principal-axis', owners.follower, 'Z', current); await origin(2, 'principal-axis', owners.base, 'Z', current);
     await control('[aria-label="Orientación de la relación"]', 'aligned');
     current = await apply(await preview(current, '[aria-label="Vista previa de la nueva relación direccional"]', null, 'component-axis-preview', 2), 'component-axis-apply');
