@@ -1,5 +1,7 @@
 import type { AssemblyDocument, AssemblyMate, AssemblyTangentReference } from '../model/assemblyDocument'
-import { assemblyDefinitionKey, validateAssemblyTangentReference } from '../model/assemblyDocument'
+import { validateAssemblyTangentReference } from '../model/assemblyDocument'
+import { assemblyMateReportContext as assemblyTangentReportContext } from './assemblyMateReportContext'
+export { assemblyMateReportContext as assemblyTangentReportContext } from './assemblyMateReportContext'
 import { assemblyTangentSideSign, assemblyTangentSupportNormalRelation, type AssemblyTangentSide } from '../model/assemblyTangentMates'
 import type { AssemblyTangentSupportReport } from '../cad/kernel.assembly-types'
 
@@ -22,20 +24,6 @@ export function assemblyTangentUiEdit(mate: AssemblyUiTangentMate, fields: Assem
 }
 export function assemblyTangentUiReady(first: AssemblyTangentReference | null, second: AssemblyTangentReference | null): boolean {
   try { assemblyTangentUiProposal(first, second, { name: 'Tangencia', side: 'positive' }); return true } catch { return false }
-}
-/** A local mate ID needs its complete expansion path to resolve a visible name. */
-export function assemblyTangentReportContext(document: AssemblyDocument, report: { scopePath: readonly string[]; mateId: string }) {
-  if (!Array.isArray(report.scopePath) || !report.scopePath.every(value => typeof value === 'string') || typeof report.mateId !== 'string') return null
-  let node: AssemblyDocument | Extract<AssemblyDocument['definitions'][number], { kind: 'assembly' }> = document
-  const names: string[] = []
-  for (const id of report.scopePath) {
-    const occurrence: AssemblyDocument['occurrences'][number] | undefined = node.occurrences.find(value => value.id === id && !value.suppressed)
-    const definition: AssemblyDocument['definitions'][number] | undefined = occurrence && document.definitions.find(value => value.kind === 'assembly' && assemblyDefinitionKey(value) === assemblyDefinitionKey(occurrence.definition))
-    if (!occurrence || !definition || definition.kind !== 'assembly') return null
-    names.push(occurrence.name); node = definition
-  }
-  const mate = node.mates.find(value => value.id === report.mateId && !value.suppressed)
-  return mate ? { mate, scopeLabel: names.length ? names.join(' / ') : document.name } : null
 }
 /** Display consistency only; native capability remains private to the worker. */
 export function assemblyTangentUiReports(document: AssemblyDocument, reports: readonly AssemblyTangentSupportReport[]): AssemblyTangentSupportReport[] {

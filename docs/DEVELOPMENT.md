@@ -701,6 +701,15 @@ definido», alongside the reported local freedom and rank. Unknown counts,
 diagnostics and temporary-anchor wording retain their existing meaning. This
 display mapping changes no solver result, saved relation or Apply authority.
 
+Physical checks resolve the solver's canonical `(occurrence path, relation ID)`
+against that same preview document. Their primary text uses the saved relation
+name, qualified by occurrence names in nested scopes. Root and reused local IDs
+remain distinct. Missing, suppressed, noncanonical or ambiguous identities show
+«Relación no disponible en este ámbito»; they never borrow another relation's
+name. The shared display resolver also serves the existing support summaries.
+Check keys, satisfaction, residuals, tolerances and native Apply authority remain
+unchanged. Labels and names are ordinary escaped React text.
+
 ## Root-part scene placement declarations
 
 `expandAssemblyParts` retains a strict detached copy of an already validated

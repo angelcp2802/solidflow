@@ -838,6 +838,19 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(summary.statusAndFreedom === 'Insuficientemente definido · ' + result.localDOF + ' grados de libertad locales',
       'Native solve status is shown in Spanish without exposing its internal enum: ' + JSON.stringify(summary));
     checks.push({ localizedAssemblySolveSummary: { phase, status: result.status, localDOF: result.localDOF, rank: result.rank, displayed: summary } });
+    const names = new Map(value.document.mates.map(mate => [JSON.stringify([[], mate.id]), mate.name]));
+    check(value.checks.every(check => names.has(check.constraintId)), 'Original root checks have exact local relation identities');
+    const physical = await page(() => {
+      const section = [...document.querySelectorAll('.assembly-section')].find(node => node.querySelector('h3')?.textContent === 'Comprobaciones físicas');
+      return section ? [...section.querySelectorAll(':scope > p')].map(node => {
+        const copy = node.cloneNode(true); copy.querySelector('small')?.remove();
+        return { label: copy.textContent.trim(), residuals: node.querySelector('small')?.textContent };
+      }) : null;
+    });
+    check(canonical(physical) === canonical(value.checks.map(check => ({ label: `${check.satisfied ? '✓' : '⚠'} ${names.get(check.constraintId)}`,
+      residuals: `${check.lengthResidual.toExponential(2)} / ${check.lengthTolerance.toExponential(2)} mm · ${check.angleResidual.toExponential(2)} / ${check.angleTolerance.toExponential(2)} rad` }))),
+    'Physical checks show the actual preview relation names and unchanged native residuals');
+    checks.push({ namedPhysicalChecks: { phase, rows: physical } });
     geometry(value.scene, value.document, 3, phase); relationGeometry(value.document, expectedDistance, expectedAlignment, expectedAngle); await recovery(doc); return value;
   }
   async function apply(candidate, phase, expectedCount = 3, expectedDistance = -12, expectedAngle = null) {
