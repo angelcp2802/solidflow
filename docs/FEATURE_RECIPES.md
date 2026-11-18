@@ -190,7 +190,11 @@ sketch ID and on each ancestor datum ID. Each record contains only `featureId`,
 through its earlier `sketchId`; a datum belongs through the earlier support
 chain. Repeated locators and disconnected or future nodes are rejected.
 Suppression retains historical IDs on file and prevents evaluation of an
-unavailable support. Empty or partially assigned chains require an explicit
+unavailable support. A datum changed to an earlier historical face also retains
+its connected saved sketch/datum locators. That does not authorize a transformed
+face: the recipe still rejects its unavailable native owner/role contract. Users
+can repair the datum or explicitly clear the saved support choices.
+Empty or partially assigned chains require an explicit
 editor choice before native Apply. Existing files with absent support policy
 retain their authored graph. The support table shares the closure limit of 256
 definitions and the existing end-policy count stays capped at 32.

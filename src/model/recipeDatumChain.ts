@@ -2,8 +2,8 @@ import type { Feature, ReferencePlaneFeature } from '../cad/kernel.types';
 
 export const MAX_RECIPE_DEFINITIONS = 256;
 
-/** Root-first datum ancestry. A face-rooted chain needs its own native owner/role policy. */
-export function principalRecipeDatumChain(planeId: string, lookup: (id: string) => Feature | undefined, includeSuppressed = false): ReferencePlaneFeature[] | null {
+function datumChain(planeId: string, lookup: (id: string) => Feature | undefined, includeSuppressed: boolean,
+  faceRootMembership: boolean): ReferencePlaneFeature[] | null {
   const chain: ReferencePlaneFeature[] = [], seen = new Set<string>();
   let id = planeId;
   while (!seen.has(id) && chain.length < MAX_RECIPE_DEFINITIONS) {
@@ -11,11 +11,16 @@ export function principalRecipeDatumChain(planeId: string, lookup: (id: string) 
     if (plane?.type !== 'plane' || plane.suppressed && !includeSuppressed || !Number.isFinite(plane.offset) || Math.abs(plane.offset) > 1_000_000 ||
         typeof plane.reversed !== 'boolean') return null;
     chain.push(plane); seen.add(id);
-    if (plane.support.kind === 'principal') return chain.reverse();
+    if (plane.support.kind === 'principal' || faceRootMembership && plane.support.kind === 'face') return chain.reverse();
     if (plane.support.kind !== 'plane') return null;
     id = plane.support.planeId;
   }
   return null;
+}
+
+/** Root-first active datum ancestry. A face root still requires its own native owner/role policy. */
+export function principalRecipeDatumChain(planeId: string, lookup: (id: string) => Feature | undefined, includeSuppressed = false): ReferencePlaneFeature[] | null {
+  return datumChain(planeId, lookup, includeSuppressed, false);
 }
 
 /** Exact selected sketch/datum locator membership. Suppressed declarations retain their saved identity. */
@@ -28,6 +33,9 @@ export function transformedSketchSupports(seed: Feature | undefined, lookup: (id
   }
   const sketch = lookup(seed.sketchId);
   if (sketch?.type !== 'sketch' || sketch.suppressed && !includeSuppressed || sketch.support?.kind !== 'plane') return [];
-  const chain = principalRecipeDatumChain(sketch.support.planeId, lookup, includeSuppressed);
+  // A connected saved locator survives an upstream face-root edit. Its producer
+  // and history are checked by the document reader; it grants no active support.
+  const chain = purpose === 'membership' ? datumChain(sketch.support.planeId, lookup, true, true)
+    : principalRecipeDatumChain(sketch.support.planeId, lookup);
   return chain ? [...chain, sketch] : [];
 }

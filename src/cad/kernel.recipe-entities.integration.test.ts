@@ -831,3 +831,26 @@ it('reopens a changed thin seed, holds the patterned owner and rebuilds its exis
   build(engine, repaired);
   metrics(engine, { bodyId: 'A', sourceFeatureId: recipe.id }, 1000 - 32 * Math.PI, 600 + 32 * Math.PI, [8, 0, 2], [18, 10, 12]);
 }), 60_000);
+
+it('retains a face-rooted saved chain as a local recipe failure and recovers its exact principal support after repair', () => usingEngine(engine => {
+  // Exact original earlier face-producing operations and their opaque locator.
+  // This does not enable a face-rooted recipe or manufacture its native owner.
+  const require = createRequire(import.meta.url), original = require('../../scripts/desktop-pattern-sketch-support-original.cjs')();
+  const faceFixture = require('./fixtures/pattern-world-face-limit-original.json');
+  const support = structuredClone(faceFixture.features.find((feature: Feature) => feature.id === 'seed-limit').endCondition.target);
+  const input = validateDocument({ ...original, features: [...structuredClone(faceFixture.features.slice(0, 6)), ...original.features] });
+  const p = input.features.at(-1)! as RepetitionFeature;
+  const recipe = withTransformedSketchSupports(withFeaturePatternMode(p, 'regenerate'), new Map(input.features.map(item => [item.id, item])), true);
+  const before = updateFeature(input, recipe.id, recipe);
+  build(engine, before);
+  const changed = updateFeature(before, 'datum-a', { support }), reopened = parseDocument(serializeDocument(changed));
+  const rejected = engine.build(reopened.features);
+  expect(rejected.featureErrors.map(item => item.id)).toEqual([recipe.id]);
+  expect(rejected.featureErrors[0].message).toContain('opaque face key');
+  metrics(engine, A, 1000, 600, [8, 0, 2], [18, 10, 12]);
+  expect(reopened.features.at(-1)).toEqual(before.features.at(-1));
+  const repaired = parseDocument(serializeDocument(updateFeature(reopened, 'datum-a', { support: { kind: 'principal', plane: 'XY' } })));
+  expect(repaired.features).toEqual(before.features);
+  build(engine, repaired);
+  metrics(engine, { bodyId: 'A', sourceFeatureId: recipe.id }, 1000 - 32 * Math.PI, 600 + 32 * Math.PI, [8, 0, 2], [18, 10, 12]);
+}), 60_000);

@@ -2,7 +2,8 @@ import { createRequire } from 'node:module';
 import { expect, it } from 'vitest';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
 import { validateFeaturePatternDeclaration } from './featurePatterns';
-import { parseDocument, serializeDocument, validateDocument } from './document';
+import { parseDocument, serializeDocument, updateFeature, validateDocument } from './document';
+import { principalRecipeDatumChain, transformedSketchSupports } from './recipeDatumChain';
 import { withFeaturePatternMode, withFeaturePatternScope, withFeaturePatternSeeds, withTransformedSketchSupports } from './featurePatternCommands';
 
 const require = createRequire(import.meta.url);
@@ -13,6 +14,17 @@ function example() {
   const recipe = withTransformedSketchSupports(withFeaturePatternMode(p,'regenerate'), history, true);
   if (recipe.featurePattern?.mode !== 'regenerate') throw Error('Original selected recipe missing.');
   return { doc: { ...doc, features: [...history.values(),recipe] }, recipe, history, policies: recipe.featurePattern.referencePolicies };
+}
+
+// Both fixtures are original project primitives. Keep the exact earlier face
+// producer and opaque locator; this is saved membership, not new face authority.
+function faceRootedExample() {
+  const { doc } = example();
+  const faceFixture = require('../cad/fixtures/pattern-world-face-limit-original.json');
+  const support = structuredClone(faceFixture.features.find((feature: Feature) => feature.id === 'seed-limit').endCondition.target);
+  const before = validateDocument({ ...doc, features: [...structuredClone(faceFixture.features.slice(0, 6)), ...doc.features] });
+  const changed = { ...before, features: before.features.map(feature => feature.id === 'datum-a' ? { ...feature, support } : feature) };
+  return { before, changed, support };
 }
 
 it('preserves exact transformed support membership and explicit deselection across a document roundtrip', () => {
@@ -82,4 +94,39 @@ it('retains connected support records when an upstream thin section temporarily 
   if (repaired?.type !== 'cut') throw Error('Original cut missing');
   delete repaired.thinWall;
   expect(parseDocument(serializeDocument(reopened)).features.at(-1)).toEqual(doc.features.at(-1));
+});
+
+it('retains connected support identities on a face-rooted datum through edit, save, reopen and repair', () => {
+  const { before, support } = faceRootedExample(), original = serializeDocument(before);
+  const changed = updateFeature(before, 'datum-a', { support });
+  const reopened = parseDocument(serializeDocument(changed));
+  expect(reopened.features.at(-1)).toEqual(before.features.at(-1));
+  const repaired = updateFeature(reopened, 'datum-a', { support: { kind: 'principal', plane: 'XY' } });
+  expect(repaired.features).toEqual(before.features);
+  expect(serializeDocument(before)).toBe(original);
+});
+
+it('keeps face-rooted membership distinct from active principal-only support and preserves a retained seed', () => {
+  const { changed } = faceRootedExample();
+  const history = new Map(changed.features.slice(0, -1).map(feature => [feature.id, feature]));
+  const lookup = (id: string) => history.get(id), seed = lookup('seed-limit');
+  expect(transformedSketchSupports(seed, lookup, 'membership').map(item => item.id)).toEqual(['datum-a', 'datum-b', 'profile-c']);
+  expect(transformedSketchSupports(seed, lookup)).toEqual([]);
+  expect(principalRecipeDatumChain('datum-b', lookup)).toBeNull();
+  expect(principalRecipeDatumChain('datum-b', lookup, true)).toBeNull();
+  const recipe = changed.features.at(-1)! as RepetitionFeature;
+  expect(withFeaturePatternSeeds(recipe, ['seed-limit'], history).featurePattern).toEqual(recipe.featurePattern);
+});
+
+it.each(['orphan-face', 'future-face', 'producer-policy', 'getter'] as const)('keeps %s outside the saved face-rooted membership boundary', fault => {
+  const { changed } = faceRootedExample();
+  const root = changed.features.find(feature => feature.id === 'datum-a');
+  const recipe = changed.features.at(-1)! as RepetitionFeature;
+  if (root?.type !== 'plane' || root.support.kind !== 'face' || recipe.featurePattern?.mode !== 'regenerate') throw Error('Original face support absent');
+  let reads = 0;
+  if (fault === 'orphan-face') root.support.face.sourceFeatureId = 'missing-face-producer';
+  if (fault === 'future-face') root.support.face.sourceFeatureId = 'create-A';
+  if (fault === 'producer-policy') recipe.featurePattern.referencePolicies[0].featureId = 'shared-cut';
+  if (fault === 'getter') Object.defineProperty(recipe.featurePattern.referencePolicies[0], 'placement', { enumerable: true, get() { reads++; return 'transform'; } });
+  expect(() => validateDocument(changed)).toThrow(); expect(reads).toBe(0);
 });

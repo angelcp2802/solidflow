@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
 import FeaturePatternPanel, { FeaturePatternWorldLimits, SketchSupportPlacement } from './FeaturePatternPanel';
 import { featurePatternBuildMessage } from './featurePatternBuildMessage';
-import { withFeaturePatternInstanceDepth, withFeaturePatternMode, withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
+import { withFeaturePatternInstanceDepth, withFeaturePatternMode, withFeaturePatternWorldLimit, withTransformedSketchSupports } from '../model/featurePatternCommands';
 
 // Original symbolic render inputs. These do not exercise pointer events or CAD.
 const base = { bodyId: 'ui-world-owner', sourceFeatureId: 'ui-world-base' };
@@ -274,4 +274,31 @@ it('lets a user remove a saved depth variation after the source sketch gains a d
   expect(html).toContain('Quitar profundidad de Instancia 2');
   expect(html).toContain('Quita las variaciones por instancia');
   expect(feature.featurePattern).toMatchObject({ variation: { kind: 'dimensions', values: [{ address: '1', value: 3 }] }, referencePolicies: [] });
+});
+
+it('offers explicit repair or clearing of a saved chain whose datum now rests on an earlier face', () => {
+  const require = createRequire(import.meta.url);
+  const original = require('../../scripts/desktop-pattern-sketch-support-original.cjs')();
+  const faceFixture = require('../cad/fixtures/pattern-world-face-limit-original.json');
+  const support = structuredClone(faceFixture.features.find((item: Feature) => item.id === 'seed-limit').endCondition.target);
+  const input = validateDocument({ ...original, features: [...structuredClone(faceFixture.features.slice(0, 6)), ...original.features] });
+  const pattern = input.features.at(-1)! as RepetitionFeature;
+  const recipe = withTransformedSketchSupports(withFeaturePatternMode(pattern, 'regenerate'), new Map(input.features.map(item => [item.id, item])), true);
+  const before = updateFeature(input, recipe.id, recipe);
+  const saved = parseDocument(serializeDocument(updateFeature(before, 'datum-a', { support })));
+  const feature = saved.features.at(-1)! as RepetitionFeature, features = saved.features.slice(0, -1);
+  const html = render(feature, features), onChange = vi.fn();
+  expect(html).toContain('Los soportes guardados ya no parten de un plano principal activo.');
+  expect(html).toContain('Corrige el plano o elige «Sin asignar».');
+  const root = SketchSupportPlacement({ feature, history: new Map(features.map(item => [item.id, item])), loading: false, onChange });
+  const selector = field(root, 'Colocación de los soportes de croquis');
+  expect(selector.props.disabled).toBe(false); expect(selector.props.value).toBe('partial');
+  selector.props.onChange?.({ target: { value: '' } });
+  const cleared = updateFeature(saved, recipe.id, onChange.mock.lastCall![0]);
+  expect(parseDocument(serializeDocument(cleared)).features.at(-1)).toMatchObject({ featurePattern: { referencePolicies: [] } });
+  const repaired = parseDocument(serializeDocument(updateFeature(saved, 'datum-a', { support: { kind: 'principal', plane: 'XY' } })));
+  const restored = repaired.features.at(-1)! as RepetitionFeature;
+  expect(restored).toEqual(before.features.at(-1));
+  const repairedRoot = SketchSupportPlacement({ feature: restored, history: new Map(repaired.features.map(item => [item.id, item])), loading: false, onChange: vi.fn() });
+  expect(field(repairedRoot, 'Colocación de los soportes de croquis').props.value).toBe('transform');
 });

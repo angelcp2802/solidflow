@@ -110,6 +110,7 @@ export function SketchSupportPlacement({ feature, history, loading, onChange }: 
       </select>
     </label>
     {hasVariations && <p className="muted-small">Quita las variaciones por instancia para cambiar la colocación de los soportes.</p>}
+    {!members.size && policies.length > 0 && <p className="muted-small">Los soportes guardados ya no parten de un plano principal activo. Corrige el plano o elige «Sin asignar».</p>}
     <ul>{[...members].map(item => <li key={item.id}>{item.type === 'plane' ? 'Plano' : 'Croquis'} · {item.name}</li>)}</ul>
   </div>;
 }
