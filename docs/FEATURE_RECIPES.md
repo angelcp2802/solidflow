@@ -205,3 +205,12 @@ An end-condition offset is independent of those intrinsic offsets. Its normal
 follows its placed support and a literal XYZ translation uses world coordinates
 after support placement. World/mixed sketch placement, face-supported sketches,
 variable local constraints and same-instance face roles remain open.
+
+The support selector keeps existing per-instance variations intact. Remove those
+variations explicitly before changing support placement; the editor disables the
+selector and explains that requirement while any remain. Support rows show the
+saved plane or sketch names. Exact IDs remain in the document and native request.
+The production-renderer routes are available through
+`npm run test:desktop:pattern-datum-limit` and
+`npm run test:desktop:pattern-sketch-support`; CI runs them in each persistence
+batch. Configured checks are not evidence that a platform has passed them.

@@ -673,6 +673,22 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:pattern-world-face-limit
 
+      - name: Test associated datum pattern placement (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-datum-limit
+
+      - name: Test associated datum pattern placement (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:pattern-datum-limit
+
+      - name: Test transformed sketch support lifecycle (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-sketch-support
+
+      - name: Test transformed sketch support lifecycle (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:pattern-sketch-support
+
       - name: Test saved UntilNext regeneration (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-until-next
