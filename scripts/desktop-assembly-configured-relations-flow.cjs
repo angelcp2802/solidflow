@@ -78,7 +78,10 @@ module.exports=function configuredRelationsWorkflow(c){
    const rows=[...document.querySelectorAll(viewport+' button[data-origin-key]')].filter(row=>row.dataset.originKey===key);
    if(rows.length!==1||rows[0].disabled||rows[0].title!==title)throw Error('Expected one enabled XY viewport label of the current scope');rows[0].click();
   },viewport,scopePlane,rightLabel);
-  const picked=await snapshot();
+  const picked=await waitFor('right-scope origin reference published after label activation',async()=>{
+   const current=await snapshot();
+   return current.pick===''&&typeof current.references[0]==='string'&&current.references[0].length>0?current:false;
+  });
   const reference=JSON.parse(picked.references[0]);
   check(picked.pick===''&&picked.references[1]===''&&canonical(reference)===canonical({kind:'principal-plane',component:null,plane:'XY'}),
    'The right-scope label assigns only the first role to exact local XY and disarms');
