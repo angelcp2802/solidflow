@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ExtrudeFeature, SketchFeature } from '../cad/kernel.types'
 import { createDocument, DocumentHistory, parseDocument, serializeDocument, updateFeature } from '../model/document'
+import { extrudeSideModePatch } from './ExtrudePanel'
 import { extrusionDirectionInputError, mergeExtrusionDraft } from './extrusionEditorDraft'
 
 // Original declaration-only records. This file checks drafts and persistence, not native solids.
@@ -125,4 +126,16 @@ describe('extrusion extent draft isolation and shared admission', () => {
     expect(history.undo().features[1]).toMatchObject({ secondDirection: { enabled: true, depth: 10 } })
     expect(history.redo().features[1]).toEqual(reopened.features[1])
   })
+})
+
+it('preserves and detaches the selected side offset when reselecting the surface mode', () => {
+  const end = { kind: 'upToSurface' as const, target: { kind: 'principal' as const, plane: 'XY' as const },
+    offset: { construction: 'translation' as const, translationWorldMm: [1, -2, 3] as [number, number, number] } }
+  const draft = { ...feature, secondDirection: { enabled: true, depth: 5, endCondition: end } }
+  const patch = extrudeSideModePatch(draft, 'second', 'upToSurface', null, { kind: 'principal', plane: 'YZ' })
+  const result = mergeExtrusionDraft(draft, patch!)
+  end.offset.translationWorldMm[0] = 100
+  expect(result.secondDirection?.endCondition).toEqual({ kind: 'upToSurface', target: { kind: 'principal', plane: 'XY' },
+    offset: { construction: 'translation', translationWorldMm: [1, -2, 3] } })
+  expect(result.endCondition).toBeUndefined()
 })

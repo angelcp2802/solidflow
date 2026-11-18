@@ -49,6 +49,7 @@ import { resolveUntilNextCut } from './kernel.until-next-resolution';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
+import { validateExtrusionEndCondition } from './extrusionEndCondition';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import { isNativeCleanupFailure, NativeCleanupError, NativeOwners, withNativeOwners } from './kernel.native-ownership';
 import { extractAssemblyFaceSupport, extractAssemblyDirectionFaceSupport, extractAssemblyCylinderSurfaceSupport, extractAssemblySphereSurfaceSupport, extractAssemblyEdgeSupport, extractAssemblyVertexSupport, UnsupportedAssemblyCurveError, UnsupportedAssemblySurfaceError, UnsupportedAssemblySphereSurfaceError, type AssemblyNativeFaceSupport, type AssemblyNativeCylinderSurfaceSupport, type AssemblyNativeSphereSurfaceSupport, type AssemblyNativeLineSupport, type AssemblyNativePointSupport } from './kernel.assembly-supports';
@@ -1746,6 +1747,7 @@ export class CadEngine {
                   if (!support) throw Error('El plano límite de una dirección no está disponible. Recupera su referencia.');
                   surface = { frame: support.frame }; limitIdentities[index] = ['upToSurface', end.target.kind, support.lineage];
                 }
+                if (end.offset) (limitIdentities[index] as unknown[]).push(['offset', end.offset]);
               } else {
                 const scoped = feature.type === 'cut' ? feature.bodyScope?.[0]
                   : feature.bodyOperation?.mode === 'merge' ? feature.bodyOperation.target : end.baseBody;
@@ -1768,7 +1770,7 @@ export class CadEngine {
               return { untilNext: end.kind === 'untilNext',
                 ...(target && feature.type === 'cut' ? { observeForward: () => resolveUntilNextCut({ workingTarget: target!, origin: frame.origin, direction, makePrism }) } : {}),
                 build: () => withNativeOwners(owners => {
-                  if (surface) return owners.own(upToSurfaceTool(surface, frame.origin, direction, makePrism));
+                  if (surface) return owners.own(upToSurfaceTool(surface, frame.origin, direction, makePrism, end.kind === 'upToSurface' ? end.offset : undefined));
                   const isolated = owners.own(copyBodyShape(target!));
                   return owners.own(end.kind === 'throughAll' ? (feature.type === 'cut' ? throughAllTool : throughAllBossTool)(isolated,
                     frame.origin, direction, end.bothDirections, makePrism) : untilNextTool(isolated, frame.origin, direction, makePrism, feature.type === 'cut'));
@@ -1797,7 +1799,8 @@ export class CadEngine {
         } else if (!isRevolutionFeature(feature) && feature.endCondition) {
           validateLength(feature.depth, 'Profundidad', true);
           if (feature.symmetric) throw new Error('La extrusión simétrica sólo está disponible con profundidad fija.');
-          const end=feature.endCondition, frame=sketchFrames.get(sketchFeature.id)!, sign=Math.sign(feature.depth);
+          const end = Object.hasOwn(feature.endCondition, 'offset') ? validateExtrusionEndCondition(feature.endCondition) : feature.endCondition;
+          const frame=sketchFrames.get(sketchFeature.id)!, sign=Math.sign(feature.depth);
           const direction=frame.normal.map(value=>value*sign) as Vec3;
           const makePrism=(length:number,start=0) => featureSolid({...feature,endCondition:undefined,depth:sign*length,symmetric:false},
             {...sketchFeature,offset:sketchFeature.offset+sign*start}, offsetPlaneFrame(frame,sign*start),false,undefined,thinSection);
@@ -1864,15 +1867,16 @@ export class CadEngine {
               if(!catalog) throw new Error('No se encuentra la superficie límite histórica. Recupera la selección.');
               const face=('semanticStatus' in catalog ? resolveSemanticSelectedFaces(catalog,[end.target.face],id)
                 : resolveSelectedFaces(catalog,[end.target.face],id))[0];
-              tool=upToSurfaceTool({face},frame.origin,direction,makePrism);
+              tool=upToSurfaceTool({face},frame.origin,direction,makePrism,end.offset);
               limitLineage=['upToSurface','face',id,end.target.face.key,historicalFaces.get(id)!.lineage];
             } else {
               const support=resolveSupport(end.target);
               if (!support && bodyAware) throw new Error('El plano límite del cuerpo seleccionado está suprimido o no está disponible.');
               if(!support) {unavailableFeatureIds.add(feature.id);result.warnings.push(`${feature.name}: omitida porque el plano límite está suprimido o no está disponible.`);continue;}
-              tool=upToSurfaceTool({frame:support.frame},frame.origin,direction,makePrism);
+              tool=upToSurfaceTool({frame:support.frame},frame.origin,direction,makePrism,end.offset);
               limitLineage=['upToSurface',end.target.kind,support.lineage];
             }
+            if (end.offset) (limitLineage as unknown[]).push(['offset', end.offset]);
           } else throw new Error('Condición final de extrusión no compatible.');
         } else if (!body && feature.type === 'extrude' && !feature.bodyOperation && sketchFeature.profile.kind === 'entities') {
           validateLength(feature.depth, 'Profundidad', true);

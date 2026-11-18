@@ -74,3 +74,27 @@ describe('retained exact secondary end declarations', () => {
       : 'Documento.features[4].secondDirection.endCondition.baseBody');
   });
 });
+
+it('rejects incomplete, mixed and out-of-range offsets in either saved direction', () => {
+  const invalid = [undefined, null, { construction: 'normal', signedDistanceMm: 1_000_001 },
+    { construction: 'normal', signedDistanceMm: 0, translationWorldMm: [0, 0, 0] },
+    { construction: 'translation', translationWorldMm: [0, Infinity, 0] }, { construction: 'translation', translationWorldMm: [0, 0] }];
+  for (const offset of invalid) {
+    const end = { kind: 'upToSurface', target: { kind: 'plane', planeId: 'lower' }, offset };
+    expect(() => validateSecondDirection({ enabled: false, depth: 7, endCondition: end })).toThrow();
+    const value = fixture(), last = operation(value.features);
+    Object.assign(last, { endCondition: end });
+    expect(() => validateDocument(value)).toThrow();
+  }
+});
+
+it('detaches translation coordinates and rejects executable components without invoking them', () => {
+  const vector = [1, 2, 3], getter = vi.fn(() => 2);
+  const end = { kind: 'upToSurface', target: { kind: 'principal', plane: 'XY' }, offset: { construction: 'translation', translationWorldMm: vector } };
+  const saved = validateSecondDirection({ enabled: false, depth: 4, endCondition: end });
+  vector[0] = 15;
+  expect(saved.endCondition).toMatchObject({ offset: { translationWorldMm: [1, 2, 3] } });
+  Object.defineProperty(vector, 1, { get: getter, enumerable: true });
+  expect(() => validateSecondDirection({ enabled: false, depth: 4, endCondition: end })).toThrow();
+  expect(getter).not.toHaveBeenCalled();
+});

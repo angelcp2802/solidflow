@@ -73,11 +73,15 @@ export interface ReferencePlaneFeature extends FeatureBase {
   reversed: boolean;
 }
 
+export type SurfaceOffset =
+  | { construction: 'normal'; signedDistanceMm: number }
+  | { construction: 'translation'; translationWorldMm: Vec3 };
+
 /** Geometric termination; absence preserves the legacy signed blind/mid-plane definition. */
 export type ExtrudeEndCondition =
   | { kind: 'throughAll'; baseFeatureId: string; bothDirections: boolean; baseBody?: BodyReference }
   | { kind: 'untilNext'; baseFeatureId: string; baseBody?: BodyReference }
-  | { kind: 'upToSurface'; target: PlaneSupport };
+  | { kind: 'upToSurface'; target: PlaneSupport; offset?: SurfaceOffset };
 
 /** Optional planar wall thickness; absence retains a filled profile. */
 export type ThinWallDefinition = (

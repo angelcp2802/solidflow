@@ -255,3 +255,22 @@ it('rejects a real 90-degree circular instance whose ray is parallel to the fixe
   metrics(engine, source, 64 - 3 * Math.PI / 2, 136 + 13 * Math.PI / 2, sourceMin, sourceMax);
   identity(result, a, a.sourceFeatureId); identity(result, source, 'create-S');
 }), 60_000);
+
+it.each([
+  { row: placements[0], x: 3, height: 3, positiveRay: true },
+  { row: placements[1], x: 0, height: 1, positiveRay: false },
+  { row: placements[2], x: 0, height: 9, positiveRay: false },
+])('rebuilds a translated world limit for the saved $row.kind recipe', ({ row, x, height, positiveRay }) => fixture(engine => {
+  const before = prefix(row);
+  const seed = before.features.find(feature => feature.id === source.sourceFeatureId);
+  if (seed?.type !== 'cut' || seed.endCondition?.kind !== 'upToSurface') throw Error('Original cut seed missing.');
+  const value = updateFeature(before, seed.id, { ...seed, endCondition: { ...seed.endCondition,
+    offset: { construction: 'translation', translationWorldMm: [11, -7, 1] } } });
+  const saved = parseDocument(serializeDocument(addFeature(value, pattern(row.kind, a.sourceFeatureId))));
+  healthy(engine, saved);
+  // Linear, half-turn and mirror start at z=-2, +2 and +10 respectively. The limit stays at z=+1.
+  metrics(engine, output(), row.baseVolume - height * Math.PI / 4, row.baseArea + (height + .5) * Math.PI, row.min, row.max);
+  metrics(engine, source, 64 - 7 * Math.PI / 4, 136 + 7.5 * Math.PI, sourceMin, sourceMax);
+  probe(engine, output(), [x, 0, .5], !positiveRay);
+  probe(engine, output(), [x, 0, 1.5], positiveRay);
+}), 60_000);

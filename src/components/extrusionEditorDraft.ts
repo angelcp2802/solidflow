@@ -1,3 +1,4 @@
+import { validateSurfaceOffset } from '../cad/extrusionEndCondition'
 import { resolveExtrusionDirections, type SecondDirection } from '../cad/extrusionDirection'
 import type { ExtrudeEndCondition, ExtrudeFeature } from '../cad/kernel.types'
 import { captureOwnDataRecord } from '../model/ownDataRecord'
@@ -13,7 +14,7 @@ function draftField(patch: object, key: 'endCondition' | 'secondDirection'): Pro
 
 /** Detach only declared own data before any object spread; incomplete IDs remain editable. */
 function endConditionDraft(value: unknown): ExtrudeEndCondition {
-  const fields = captureOwnDataRecord(value, ['kind', 'baseFeatureId', 'bothDirections', 'baseBody', 'target'], ['kind'], 'Condición final')
+  const fields = captureOwnDataRecord(value, ['kind', 'baseFeatureId', 'bothDirections', 'baseBody', 'target', 'offset'], ['kind'], 'Condición final')
   const kind = fields.get('kind')
   const record = (input: unknown, allowed: string[]) => {
     const captured = captureOwnDataRecord(input, allowed, allowed, 'Referencia de condición final')
@@ -23,14 +24,15 @@ function endConditionDraft(value: unknown): ExtrudeEndCondition {
     return Object.fromEntries(captured)
   }
   if (kind === 'upToSurface') {
-    const end = record(value, ['kind', 'target'])
+    const end = Object.fromEntries(captureOwnDataRecord(value, ['kind', 'target', 'offset'], ['kind', 'target'], 'Condición final'))
     const target = captureOwnDataRecord(end.target, ['kind', 'plane', 'planeId', 'face'], ['kind'], 'Superficie de destino')
     let detached: object
     if (target.get('kind') === 'principal') detached = record(end.target, ['kind', 'plane'])
     else if (target.get('kind') === 'plane') detached = record(end.target, ['kind', 'planeId'])
     else if (target.get('kind') === 'face') detached = { ...record(end.target, ['kind', 'face']), face: record(target.get('face'), ['sourceFeatureId', 'key']) }
     else throw Error('Superficie de destino desconocida.')
-    return { kind, target: detached as Extract<ExtrudeEndCondition, { kind: 'upToSurface' }>['target'] }
+    return { kind, target: detached as Extract<ExtrudeEndCondition, { kind: 'upToSurface' }>['target'],
+      ...(fields.has('offset') ? { offset: validateSurfaceOffset(fields.get('offset'), 'Desplazamiento') } : {}) }
   }
   if (kind !== 'throughAll' && kind !== 'untilNext') throw Error('Condición final desconocida.')
   const allowed = kind === 'throughAll' ? ['kind', 'baseFeatureId', 'bothDirections', 'baseBody'] : ['kind', 'baseFeatureId', 'baseBody']

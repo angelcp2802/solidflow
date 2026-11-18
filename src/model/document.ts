@@ -7,6 +7,7 @@ import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputInclud
 import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
 import { captureOwnDataRecord } from './ownDataRecord'
 import { mergeThinWallDraft, readThinWall } from '../cad/thinWall'
+import { validateSurfaceOffset } from '../cad/extrusionEndCondition'
 import { readSecondDirection, readSecondDirectionDraft } from '../cad/extrusionDirection'
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
@@ -400,8 +401,10 @@ function extrudeEndCondition(value: unknown, path: string): ExtrudeEndCondition 
       ...(Object.hasOwn(source, 'baseBody') ? { baseBody: bodyReference(source.baseBody, `${path}.baseBody`) } : {}) }
   }
   if (source.kind === 'upToSurface') {
-    keys(source, ['kind', 'target'], path)
-    return { kind: 'upToSurface', target: support(source.target, `${path}.target`, true) }
+    keys(source, ['kind', 'target'], path, ['offset'])
+    const fields = captureOwnDataRecord(source, ['kind', 'target', 'offset'], ['kind', 'target'], path)
+    return { kind: 'upToSurface', target: support(source.target, `${path}.target`, true),
+      ...(fields.has('offset') ? { offset: validateSurfaceOffset(fields.get('offset'), path + '.offset') } : {}) }
   }
   return fail(`${path}.kind`, 'condición final desconocida')
 }

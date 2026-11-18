@@ -1675,11 +1675,12 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     setError("");
   };
   const changeEndTarget = (target: PlaneSupport, side: ExtrusionSide, request?: ExtrusionEndPickingRequest) => {
-    if (!mounted.current || !extrudeEditing || extrusionEndForSide(extrudeEditing, side)?.kind !== 'upToSurface'
+    const end = extrudeEditing && extrusionEndForSide(extrudeEditing, side);
+    if (!mounted.current || !extrudeEditing || end?.kind !== 'upToSurface'
       || !thinWallSourceCurrent || (side === 'second' && bodyPicking) || pickingSupport || editingRef.current !== extrudeEditing || docRef.current !== doc) return;
     if (request && (endPickingAuthority.current !== request || request.side !== side || request.draft !== extrudeEditing
       || request.document !== doc || request.epoch !== documentEpoch.current)) return;
-    changeDraft(extrusionEndPatch(extrudeEditing, side, { kind: 'upToSurface', target }));
+    changeDraft(extrusionEndPatch(extrudeEditing, side, { ...end, target }));
     stopEndPicking();
     setFaceSelection(null);
     setError("");

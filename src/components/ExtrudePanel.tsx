@@ -48,7 +48,7 @@ export function extrudeSideModePatch(feature: ExtrudeFeature, side: ExtrusionSid
   const patch = (next: ExtrudeEndCondition | undefined) => ({ ...extrusionEndPatch(feature, side, next), ...(side === 'first' ? { symmetric: false } : {}) })
   if (value === 'blind' || value === 'mid') return { ...patch(undefined), ...(side === 'first' ? { symmetric: value === 'mid' } : {}) }
   if (value === 'upToSurface') return {
-    ...patch({ kind: 'upToSurface', target: end?.kind === 'upToSurface' ? end.target : preferredTarget }),
+    ...patch(end?.kind === 'upToSurface' ? end : { kind: 'upToSurface', target: preferredTarget }),
     ...(side === 'first' ? { depth: feature.depth } : {}),
   }
   if (!['throughAll', 'throughAllBoth', 'untilNext'].includes(value)) return null

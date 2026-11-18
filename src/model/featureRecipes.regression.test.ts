@@ -141,6 +141,15 @@ it('retains an explicit instance parent-route selector as pending intent without
   expect(validated.target).toEqual(raw.target);
 });
 
+it('preserves the opposite extrusion side when validating its own offset intent', () => {
+  const raw = faceOffset('instance');
+  raw.policy.parentTargetBodyId = target.bodyId;
+  raw.policy.path = 'secondDirection.endCondition.target';
+  expect(validatePendingOffsetSurfaceIntent(raw).policy).toEqual(raw.policy);
+  raw.policy.path = 'support';
+  expect(codes(() => validatePendingOffsetSurfaceIntent(raw))).toContain('REFERENCE_POLICY');
+});
+
 it('rejects a stale instance-only route on a world face offset', () => {
   const raw = faceOffset('world'); raw.policy.parentTargetBodyId = target.bodyId;
   expect(codes(() => validatePendingOffsetSurfaceIntent(raw))).toContain('REFERENCE_POLICY');

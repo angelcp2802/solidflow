@@ -5,11 +5,12 @@
  * remain attributable to a feature/path, and bounded copying rejects getters.
  */
 import type {
-  BodyReference, ExtrudeFeature, FaceReference, Feature, PlaneFrame, PlaneSupport, Profile, ThinWallDefinition, Vec3,
+  BodyReference, ExtrudeFeature, FaceReference, Feature, PlaneFrame, PlaneSupport, Profile, SurfaceOffset, ThinWallDefinition, Vec3,
 } from '../cad/kernel.types';
 import { featureDependencyIds } from './featureInputs';
 import { isRecipeInstanceDepth, isRecipeInstanceDepthSeed, MAX_RECIPE_DEPTH_VALUES } from './featureRecipeDepthVariation';
 import { isRecipeSketchDimensionValue, recipeSketchDrivingDimensions, MAX_RECIPE_SKETCH_DIMENSIONS, MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE, type RecipeSketchDimensionVariation, type RecipeSketchDimensionValue } from './featureRecipeSketchVariation';
+import { validateSurfaceOffset } from '../cad/extrusionEndCondition';
 import { principalPlaneFrame } from '../cad/kernel.frames';
 import { readThinWall } from '../cad/thinWall';
 import { assertExtrusionDirectionContext, readSecondDirection } from '../cad/extrusionDirection';
@@ -81,7 +82,7 @@ export interface RecipeBinding {
 }
 export interface RecipeReferencePolicy {
   featureId: string;
-  /** Stable schema locator: 'support' or 'endCondition.target'. */
+  /** Stable schema locator for sketch support or the target on either extrusion side. */
   path: string;
   placement: 'world' | 'transform' | 'instance';
   /** FaceReference has no body ID: this association must be explicit, then native-attested. */
@@ -137,7 +138,7 @@ export type RecipeTermination =
   | { kind: 'blind'; signedDepth: number; symmetric: boolean }
   | { kind: 'throughAll'; bothDirections: boolean; baseFeatureId: string }
   | { kind: 'untilNext'; baseFeatureId: string }
-  | { kind: 'upToSurface'; target: PlaneSupport; policy: RecipeReferencePolicy };
+  | { kind: 'upToSurface'; target: PlaneSupport; policy: RecipeReferencePolicy; offset?: SurfaceOffset };
 export interface RecipeOperation {
   featureId: string;
   type: Feature['type'];
@@ -558,7 +559,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       if (feature.symmetric) invalid('GEOMETRIC_SYMMETRY', feature.id, 'symmetric', 'Geometric end conditions do not reuse legacy mid-plane depth.');
       if (end.kind === 'upToSurface') {
         const policy = policyFor(feature.id, 'endCondition.target', end.target);
-        node.termination = { kind: 'upToSurface', target: end.target, policy };
+        node.termination = { kind: 'upToSurface', target: end.target, policy, ...(end.offset ? { offset: end.offset } : {}) };
         if (end.target.kind !== 'principal' || policy.placement !== 'world') {
           pending('UP_TO_SURFACE_PENDING', feature.id, 'endCondition', 'Only an explicitly fixed external principal-plane limit is currently resolved; datum/face and transformed/instance correspondence remain required.');
         }
@@ -582,7 +583,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       const end = secondEnd.endCondition, path = 'secondDirection.endCondition';
       if (end.kind === 'upToSurface') {
         const policy = policyFor(feature.id, `${path}.target`, end.target);
-        node.secondTermination = { kind: 'upToSurface', target: end.target, policy };
+        node.secondTermination = { kind: 'upToSurface', target: end.target, policy, ...(end.offset ? { offset: end.offset } : {}) };
         if (end.target.kind !== 'principal' || policy.placement !== 'world') {
           pending('UP_TO_SURFACE_PENDING', feature.id, path, 'Only an explicitly fixed external principal-plane limit is currently resolved; datum/face and transformed/instance correspondence remain required.');
         }
@@ -757,18 +758,17 @@ export function transformedLimitPlane(rawSource: PlaneFrame, transform: RecipeIn
   return checkedFrame({ origin: mapping.point(frame.origin), xDirection: mapping.vector(frame.xDirection), normal: mapping.vector(frame.normal) });
 }
 
-/** Proposed future input, deliberately not installed into today's ExtrudeEndCondition union. */
+/** Detached reference policy and construction intent. Placement still requires a resolved native support. */
 export type PendingOffsetSurfaceIntent = {
   target: PlaneSupport; policy: RecipeReferencePolicy;
-} & ({ construction: 'normal'; signedDistanceMm: number }
-  | { construction: 'translation'; translationWorldMm: Vec3 });
+} & SurfaceOffset;
 export function validatePendingOffsetSurfaceIntent(intent: PendingOffsetSurfaceIntent): Readonly<PendingOffsetSurfaceIntent> {
   const copy = boundedClone(intent, '(offset)', { remaining: RECIPE_LIMITS.jsonNodes });
   recordKeys(copy, '(offset)', '$', ['target', 'policy', 'construction'], ['signedDistanceMm', 'translationWorldMm']);
   recordKeys(copy.policy, '(offset)', 'policy', ['featureId', 'path', 'placement'], ['owner', 'parentTargetBodyId']);
   supportShape(copy.target, '(offset)', 'target');
   stringId(copy.policy.featureId, '(offset)', 'policy.featureId');
-  if (copy.policy.path !== 'endCondition.target') invalid('REFERENCE_POLICY', '(offset)', 'policy.path', 'Offset policy must identify its end-reference locator.');
+  if (copy.policy.path !== 'endCondition.target' && copy.policy.path !== 'secondDirection.endCondition.target') invalid('REFERENCE_POLICY', '(offset)', 'policy.path', 'Offset policy must identify its end-reference locator.');
   if (!['world', 'transform', 'instance'].includes(copy.policy.placement)) invalid('REFERENCE_POLICY', '(offset)', 'policy', 'Offset surface needs an explicit reference policy.');
   if (copy.target.kind === 'face') {
     const owner = ref(copy.policy.owner!, '(offset)', 'policy.owner');
@@ -778,14 +778,12 @@ export function validatePendingOffsetSurfaceIntent(intent: PendingOffsetSurfaceI
   } else if (copy.policy.owner !== undefined || copy.policy.parentTargetBodyId !== undefined || copy.policy.placement === 'instance') {
     invalid('REFERENCE_POLICY', '(offset)', 'policy', 'Plane offset does not declare an instance face role.');
   }
-  if (copy.construction === 'normal') {
-    recordKeys(copy, '(offset)', '$', ['target', 'policy', 'construction', 'signedDistanceMm']);
-    if (!Number.isFinite(copy.signedDistanceMm) || Math.abs(copy.signedDistanceMm) > 1_000_000) invalid('OFFSET_DISTANCE', '(offset)', 'signedDistanceMm', 'Normal distance must be finite and bounded.');
-  } else if (copy.construction === 'translation') {
-    recordKeys(copy, '(offset)', '$', ['target', 'policy', 'construction', 'translationWorldMm']);
-    finiteVector(copy.translationWorldMm, 'translationWorldMm');
+  const { target: _target, policy: _policy, ...offset } = copy;
+  try { validateSurfaceOffset(offset, 'offset'); }
+  catch {
+    if (offset.construction === 'normal') invalid('OFFSET_DISTANCE', '(offset)', 'signedDistanceMm', 'Normal distance must be finite and bounded.');
+    invalid('OFFSET_CONSTRUCTION', '(offset)', 'construction', 'Expected a bounded signed distance or three bounded world coordinates.');
   }
-  else invalid('OFFSET_CONSTRUCTION', '(offset)', 'construction', 'Normal offset and explicit translation are different saved intents.');
   return freezeTree(copy);
 }
 

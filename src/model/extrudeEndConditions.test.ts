@@ -26,6 +26,10 @@ const modes: ExtrudeEndCondition[] = [
   { kind: 'upToSurface', target: { kind: 'plane', planeId: plane.id } },
   { kind: 'upToSurface', target: { kind: 'face', face: face() } },
 ]
+const offsetModes: ExtrudeEndCondition[] = [
+  { kind: 'upToSurface', target: { kind: 'plane', planeId: plane.id }, offset: { construction: 'normal', signedDistanceMm: -3 } },
+  { kind: 'upToSurface', target: { kind: 'principal', plane: 'XY' }, offset: { construction: 'translation', translationWorldMm: [2, -7, 0] } },
+]
 const documentWith = (...features: unknown[]) => validateDocument({
   ...createDocument(), features: [sketch('profile'), solid(), plane, sketch('cut-profile'), ...features],
 })
@@ -50,7 +54,7 @@ describe('extrusion end-condition persistence', () => {
   it('round trips every end condition and direction for extrusions and cuts in version one', () => {
     for (const type of ['extrude', 'cut'] as const) {
       for (const depth of [-123, 456]) {
-        for (const endCondition of modes) {
+        for (const endCondition of [...modes, ...offsetModes]) {
           const feature = { ...limited(endCondition), type, depth }
           const document = documentWith(feature)
           expect(document.version).toBe(1)

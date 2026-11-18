@@ -297,3 +297,60 @@ it('reopens the UI-saved first extrusion of a constrained rectangle to its 45 mm
  const changed=structuredClone(document.features);if(changed[0].type!=='plane')throw new Error('Plane expected');changed[0].offset=30;
  expect(good(changed).volume).toBeCloseTo(36000,4);
 });
+
+/** Original cylinder of radius 5 starts at z=0. The reversed datum is at z=30. */
+it('uses the oriented datum normal for distance and document axes for translation', () => {
+  const datum: Feature = { id: 'limit', name: 'Original reversed datum', type: 'plane', support: { kind: 'principal', plane: 'XY' },
+    offset: 30, reversed: true, suppressed: false };
+  const target = { kind: 'plane' as const, planeId: datum.id };
+  for (const [offset, height] of [
+    [{ construction: 'normal', signedDistanceMm: 4 }, 26],
+    [{ construction: 'normal', signedDistanceMm: -4 }, 34],
+    [{ construction: 'translation', translationWorldMm: [2, -3, 4] }, 34],
+    [{ construction: 'translation', translationWorldMm: [2, -3, 0] }, 30],
+  ] as const) {
+    const endCondition: ExtrudeFeature['endCondition'] = { kind: 'upToSurface', target,
+      offset: offset.construction === 'normal' ? offset : { ...offset, translationWorldMm: [...offset.translationWorldMm] } };
+    const result = good([datum, sketch('profile'), { ...extrude('boss', 'profile', 1), endCondition }]);
+    expect(result.volume).toBeCloseTo(25 * Math.PI * height, 5);
+    expect(result.bounds.max[2]).toBeCloseTo(height, 6);
+  }
+});
+
+it('offsets the historical bottom face along its outward negative Z normal', () => {
+  const features = box(), base = good(features);
+  const face = base.faces!.find(item => item.frame?.normal[2] === -1)!.ref;
+  const cut: ExtrudeFeature = { ...extrude('cut', 'profile', -1), type: 'cut',
+    endCondition: { kind: 'upToSurface', target: { kind: 'face', face }, offset: { construction: 'normal', signedDistanceMm: -7 } } };
+  // Box top z=40. Bottom outward normal -Z times -7 mm moves the cut floor to z=7.
+  expect(good([...features, sketch('profile', 40), cut]).volume).toBeCloseTo(160000 - 33 * 25 * Math.PI, 5);
+});
+
+it('translates the trimmed cylindrical limit and keeps its source owner unchanged', () => {
+  // Original cylinder, axis Y, radius 20, centre at x=0,z=30. Integrate its lower arc over a 4 by 6 rectangle.
+  const cylinder: Feature[] = [{ ...sketch('arc-profile', -50, 20), plane: 'XZ', profile: { kind: 'circle', radius: 20, center: [0, 30] } },
+    { ...extrude('arc-owner', 'arc-profile', 100), type: 'extrude', bodyOperation: { mode: 'new', bodyId: 'cylinder' } }];
+  const face = good(cylinder).faces!.find(item => !item.frame)!.ref;
+  const profile: Feature = { ...sketch('base-profile'), profile: { kind: 'rectangle', center: [0, 0], width: 4, height: 6 } };
+  const target = { kind: 'face' as const, face };
+  const operation: ExtrudeFeature = { ...extrude('arc-limited', 'base-profile', 1), type: 'extrude', bodyOperation: { mode: 'new', bodyId: 'limited' },
+    endCondition: { kind: 'upToSurface', target, offset: { construction: 'translation', translationWorldMm: [1, 2, 4] } } };
+  const result = good([...cylinder, profile, operation]);
+  const primitive = (x: number) => .5 * (x * Math.sqrt(400 - x * x) + 400 * Math.asin(x / 20));
+  const expected = 6 * (4 * 34 - (primitive(1) - primitive(-3)));
+  expect(result.bodies).toHaveLength(2);
+  expect(result.bodies!.find(body => body.ref.bodyId === 'limited')!.volume).toBeCloseTo(expected, 5);
+  expect(result.bodies!.find(body => body.ref.bodyId === 'cylinder')!.volume).toBeCloseTo(40000 * Math.PI, 5);
+  const invalid = engine.build([...cylinder, profile, { ...operation, endCondition: { kind: 'upToSurface', target,
+    offset: { construction: 'normal', signedDistanceMm: 2 } } }]);
+  expect(invalid.featureErrors).toHaveLength(1);
+  expect(invalid.bodies?.some(body => body.ref.bodyId === 'limited')).toBe(false);
+});
+
+it('resolves the opposite limit offset independently of the primary blind distance', () => {
+  const result = good([sketch('profile'), { ...extrude('boss', 'profile', 3), secondDirection: { enabled: true, depth: 1,
+    endCondition: { kind: 'upToSurface', target: { kind: 'principal', plane: 'XY' }, offset: { construction: 'normal', signedDistanceMm: -4 } } } }]);
+  expect(result.volume).toBeCloseTo(175 * Math.PI, 5);
+  expect(result.bounds.min[2]).toBeCloseTo(-4, 6);
+  expect(result.bounds.max[2]).toBeCloseTo(3, 6);
+});

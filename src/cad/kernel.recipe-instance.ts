@@ -2,7 +2,7 @@ import type { Shape3D } from 'replicad';
 import { fixedProfileInstanceInput, intrinsicProfileInstancePlacement, isInitialAdditiveAllRecipe, requireInitialRecipeDeclaration, type RecipeClosure, type RecipeTermination } from '../model/featureRecipes';
 import { withNativeOwners } from './kernel.native-ownership';
 import { buildExplicitFramePrimitive, resolveExplicitFrameDirections, resolveExplicitFrameUntilNext, type PrimitiveTermination } from './kernel.recipe-primitives';
-import { principalPlaneFrame } from './kernel.frames';
+import { offsetLimitFrame, principalPlaneFrame } from './kernel.frames';
 import { buildEntityRecipeTool, resolveEntityRecipeDirections, resolveEntityRecipeUntilNext, type EntityRecipeSolveInput } from './kernel.recipe-entities';
 import type { DirectionToolResolution } from './kernel.direction-tools';
 import type { UntilNextCutResolution } from './kernel.until-next-resolution';
@@ -34,9 +34,10 @@ function nativeTermination(end: RecipeTermination): PrimitiveTermination {
   if (end.kind === 'blind') return { kind: 'blind', symmetric: end.symmetric };
   if (end.kind === 'throughAll') return { kind: 'throughAll', bothDirections: end.bothDirections };
   if (end.kind === 'untilNext') return { kind: 'untilNext' };
-  if (end.target.kind === 'principal' && end.policy.placement === 'world') return {
-    kind: 'upToSurface', limit: { frame: principalPlaneFrame(end.target.plane) },
-  };
+  if (end.target.kind === 'principal' && end.policy.placement === 'world') {
+    const frame = principalPlaneFrame(end.target.plane);
+    return { kind: 'upToSurface', limit: { frame: end.offset ? offsetLimitFrame(frame, end.offset) : frame } };
+  }
   throw Error('La referencia exacta de un límite de instancia sigue pendiente de resolución nativa.');
 }
 
@@ -82,15 +83,7 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
     if (!input.assertWorkingCurrent) throw Error('Additive ALL requires its evaluator current working-owner guard.');
     input.assertWorkingCurrent();
   }
-  let termination: PrimitiveTermination;
-  if (end.kind === 'blind') termination = { kind: 'blind', symmetric: end.symmetric };
-  else if (end.kind === 'throughAll') termination = { kind: 'throughAll', bothDirections: end.bothDirections };
-  else if (end.kind === 'untilNext') termination = { kind: 'untilNext' };
-  else if (end.kind === 'upToSurface' && end.target.kind === 'principal' && end.policy.placement === 'world') {
-    // The profile/ray follow the actual instance. The explicitly selected
-    // principal plane remains in document coordinates, rather than following Q.
-    termination = { kind: 'upToSurface', limit: { frame: principalPlaneFrame(end.target.plane) } };
-  } else throw new Error('The exact principal-plane end reference is not resolved.');
+  const termination = nativeTermination(end);
   const secondTermination = resolved.secondTermination ? nativeTermination(resolved.secondTermination) : undefined;
   return { closure, resolved, operation, termination, secondTermination, sketch };
 }
