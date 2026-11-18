@@ -70,3 +70,16 @@ it('bounds the detached support table independently of the existing limit table'
   operation.referencePolicies.push({ featureId: 'one-too-many', path: 'support', placement: 'transform' });
   expect(() => validateFeaturePatternDeclaration(recipe)).toThrow();
 });
+
+it('retains connected support records when an upstream thin section temporarily prevents recipe regeneration', () => {
+  const { doc, policies } = example();
+  const seed = doc.features.find(item => item.id === 'seed-limit');
+  if (seed?.type !== 'cut') throw Error('Original cut missing');
+  seed.thinWall = { kind: 'mid-plane', thickness: 1 };
+  const reopened = parseDocument(serializeDocument(doc));
+  expect(reopened.features.at(-1)).toMatchObject({ featurePattern: { referencePolicies: policies } });
+  const repaired = reopened.features.find(item => item.id === seed.id);
+  if (repaired?.type !== 'cut') throw Error('Original cut missing');
+  delete repaired.thinWall;
+  expect(parseDocument(serializeDocument(reopened)).features.at(-1)).toEqual(doc.features.at(-1));
+});

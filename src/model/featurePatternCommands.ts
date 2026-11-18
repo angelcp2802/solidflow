@@ -29,7 +29,7 @@ export function withFeaturePatternSeeds(feature: RepetitionFeature, featureIds: 
   }
   const selected = new Set(featureIds), next = structuredClone(feature), operation = next.featurePattern!
   const source = { ...feature.source, featureIds: [...featureIds] }
-  const supportIds = new Set(history ? featureIds.flatMap(id => transformedSketchSupports(history.get(id), key => history.get(key), true).map(item => item.id)) : [])
+  const supportIds = new Set(history ? featureIds.flatMap(id => transformedSketchSupports(history.get(id), key => history.get(key), 'membership').map(item => item.id)) : [])
   if (!history && operation.mode === 'regenerate' && operation.referencePolicies.some(policy => policy.path === 'support')) {
     const priorIds = feature.source.featureIds;
     if (featureIds.length === priorIds.length && featureIds.every((id, i) => id === priorIds[i])) return next;

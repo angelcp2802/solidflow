@@ -19,10 +19,13 @@ export function principalRecipeDatumChain(planeId: string, lookup: (id: string) 
 }
 
 /** Exact selected sketch/datum locator membership. Suppressed declarations retain their saved identity. */
-export function transformedSketchSupports(seed: Feature | undefined, lookup: (id: string) => Feature | undefined, includeSuppressed = false): Feature[] {
+export function transformedSketchSupports(seed: Feature | undefined, lookup: (id: string) => Feature | undefined, purpose: 'active' | 'membership' = 'active'): Feature[] {
+  const includeSuppressed = purpose === 'membership';
   if (!seed || seed.type !== 'extrude' && seed.type !== 'cut' || seed.suppressed && !includeSuppressed) return [];
-  if (seed.type === 'cut' ? !seed.bodyScope?.length : seed.bodyOperation?.mode !== 'merge') return [];
-  if (Object.hasOwn(seed, 'thinWall')) return [];
+  if (purpose === 'active') {
+    if (seed.type === 'cut' ? !seed.bodyScope?.length : seed.bodyOperation?.mode !== 'merge') return [];
+    if (Object.hasOwn(seed, 'thinWall')) return [];
+  }
   const sketch = lookup(seed.sketchId);
   if (sketch?.type !== 'sketch' || sketch.suppressed && !includeSuppressed || sketch.support?.kind !== 'plane') return [];
   const chain = principalRecipeDatumChain(sketch.support.planeId, lookup, includeSuppressed);

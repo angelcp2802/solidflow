@@ -812,3 +812,22 @@ it('guards a saved associated sketch against another active address, physical ow
   }
   build(engine,doc);
 }),60_000);
+
+it('reopens a changed thin seed, holds the patterned owner and rebuilds its existing support policy after repair', () => usingEngine(engine => {
+  const original = validateDocument(createRequire(import.meta.url)('../../scripts/desktop-pattern-sketch-support-original.cjs')());
+  const p = original.features.at(-1)! as RepetitionFeature;
+  const history = new Map(original.features.slice(0, -1).map(item => [item.id, item]));
+  const recipe = withTransformedSketchSupports(withFeaturePatternMode(p, 'regenerate'), history, true);
+  const before = updateFeature(original, p.id, recipe);
+  const seed = before.features.find(item => item.id === 'seed-limit');
+  if (seed?.type !== 'cut') throw Error('Original cut missing');
+  const changed = updateFeature(before, seed.id, { ...seed, thinWall: { kind: 'mid-plane', thickness: 1 } });
+  const reopened = parseDocument(serializeDocument(changed));
+  const result = engine.build(reopened.features);
+  expect(result.featureErrors.map(item => item.id)).toEqual([recipe.id]);
+  metrics(engine, A, 1000, 600, [8, 0, 2], [18, 10, 12]);
+  const repaired = updateFeature(reopened, seed.id, { thinWall: undefined });
+  expect(repaired.features.at(-1)).toEqual(before.features.at(-1));
+  build(engine, repaired);
+  metrics(engine, { bodyId: 'A', sourceFeatureId: recipe.id }, 1000 - 32 * Math.PI, 600 + 32 * Math.PI, [8, 0, 2], [18, 10, 12]);
+}), 60_000);

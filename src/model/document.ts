@@ -911,7 +911,7 @@ export function validateDocument(value: unknown): Document {
       const references = parsed.source.mode === 'features' ? parsed.source.featureIds : parsed.source.mode === 'body' ? [parsed.source.sourceFeatureId] : []
       if (parsed.featurePattern?.mode === 'regenerate' && parsed.featurePattern.referencePolicies.some(policy => policy.path === 'support')) {
         const lookup = (id: string) => seen.get(id);
-        const members = new Set(references.flatMap(id => transformedSketchSupports(lookup(id), lookup, true).map(item => item.id)));
+        const members = new Set(references.flatMap(id => transformedSketchSupports(lookup(id), lookup, 'membership').map(item => item.id)));
         parsed.featurePattern.referencePolicies.forEach((policy, index) => {
           if (policy.path === 'support' && !members.has(policy.featureId)) {
             fail(path + '.featurePattern.referencePolicies[' + index + '].featureId', 'el soporte debe pertenecer al croquis o a un plano anterior de una semilla seleccionada');
