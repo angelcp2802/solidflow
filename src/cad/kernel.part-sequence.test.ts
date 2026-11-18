@@ -75,6 +75,39 @@ it('provides a valid starting body with four unused independent sketches for ren
   checkBuild(parseDocument(serializeDocument(document)), 960, 4);
 });
 
+it('moves both floors of the shared-plane pocket example after one plane edit', async () => {
+  // Original millimetre example built from three concentric rectangles.
+  const file = new URL('../../examples/Placa con dos rebajes encadenados.solidflow', import.meta.url);
+  const original = parseDocument(await readFile(file, 'utf8'));
+  const history = new DocumentHistory(original);
+  const edited = updateFeature(original, 'pocket-floor', { offset: 6 });
+  history.apply(edited);
+
+  async function checkFloors(document: Document, stepZ: number) {
+    const reopened = parseDocument(serializeDocument(document));
+    const result = engine.build(reopened.features);
+    expect(result.featureErrors).toEqual([]);
+    expect(result.bodies).toHaveLength(1);
+    const body = result.bodies![0];
+    expect(body.ref).toEqual({ bodyId: 'plate', sourceFeatureId: 'inner-pocket' });
+    const levels = body.faces.flatMap(face => face.frame && face.frame.normal[2] > 0.999999
+      ? [face.frame.origin[2]] : []).sort((a, b) => a - b);
+    expect(levels).toHaveLength(3);
+    [stepZ - 3, stepZ, 12].forEach((z, i) => expect(Math.abs(levels[i] - z)).toBeLessThan(coordinateTolerance));
+    // The horizontal area removed at each opening reappears at its floor.
+    const depth = 12 - stepZ;
+    const volume = 36 * 30 * 12 - 24 * 18 * depth - 10 * 8 * 3;
+    const area = 2 * (36 * 30 + 36 * 12 + 30 * 12) + 2 * (24 + 18) * depth + 2 * (10 + 8) * 3;
+    expect(Math.abs(body.volume - volume)).toBeLessThan(volumeTolerance);
+    await checkNativeExport(reopened, volume, area);
+  }
+
+  await checkFloors(original, 8);
+  await checkFloors(edited, 6);
+  expect(history.undo().features).toEqual(original.features);
+  expect(history.redo().features).toEqual(edited.features);
+}, 60_000);
+
 it('rebuilds all downstream cuts and bosses after widening the consumed base sketch', async () => {
   const original = createCompletedPartSequenceDocument();
   const sketch = original.features[0];

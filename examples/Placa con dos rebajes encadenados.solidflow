@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "id": "shared-plane-stepped-pocket",
+  "name": "Placa con dos rebajes encadenados",
+  "units": "mm",
+  "features": [
+    {
+      "id": "stock-outline",
+      "name": "Contorno de la placa",
+      "type": "sketch",
+      "suppressed": false,
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "width": 36,
+        "height": 30,
+        "center": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "stock",
+      "name": "Placa de 12 mm",
+      "type": "extrude",
+      "suppressed": false,
+      "sketchId": "stock-outline",
+      "depth": 12,
+      "symmetric": false,
+      "bodyOperation": {
+        "mode": "new",
+        "bodyId": "plate"
+      }
+    },
+    {
+      "id": "pocket-floor",
+      "name": "Plano del escalón",
+      "type": "plane",
+      "suppressed": false,
+      "support": {
+        "kind": "principal",
+        "plane": "XY"
+      },
+      "offset": 8,
+      "reversed": false
+    },
+    {
+      "id": "outer-outline",
+      "name": "Contorno del primer rebaje",
+      "type": "sketch",
+      "suppressed": false,
+      "plane": "XY",
+      "offset": 12,
+      "profile": {
+        "kind": "rectangle",
+        "width": 24,
+        "height": 18,
+        "center": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "outer-pocket",
+      "name": "Primer rebaje hasta el plano",
+      "type": "cut",
+      "suppressed": false,
+      "sketchId": "outer-outline",
+      "depth": -4,
+      "symmetric": false,
+      "bodyScope": [
+        {
+          "bodyId": "plate",
+          "sourceFeatureId": "stock"
+        }
+      ],
+      "endCondition": {
+        "kind": "upToSurface",
+        "target": {
+          "kind": "plane",
+          "planeId": "pocket-floor"
+        }
+      }
+    },
+    {
+      "id": "inner-outline",
+      "name": "Contorno del segundo rebaje",
+      "type": "sketch",
+      "suppressed": false,
+      "plane": "XY",
+      "offset": 0,
+      "support": {
+        "kind": "plane",
+        "planeId": "pocket-floor"
+      },
+      "profile": {
+        "kind": "rectangle",
+        "width": 10,
+        "height": 8,
+        "center": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "inner-pocket",
+      "name": "Segundo rebaje de 3 mm",
+      "type": "cut",
+      "suppressed": false,
+      "sketchId": "inner-outline",
+      "depth": -3,
+      "symmetric": false,
+      "bodyScope": [
+        {
+          "bodyId": "plate",
+          "sourceFeatureId": "outer-pocket"
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-11-18T00:00:00.000Z",
+  "updatedAt": "2026-11-18T00:00:00.000Z"
+}
