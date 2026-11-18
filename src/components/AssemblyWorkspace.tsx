@@ -60,6 +60,7 @@ import { applyAssemblyEdit, AssemblyDocumentHistory, type AssemblyEdit, type New
 import { createDocument, validateDocument, type Document } from '../model/document'
 import { insertAssemblyDocument } from '../model/assemblyImport'
 import { identityRigidPose, type RigidPose } from '../model/rigidPose'
+import type { RigidMateSolveStatus } from '../model/assemblySolver'
 import type { Plane } from '../cad/kernel.types'
 import { createAssemblyExample, createEmptyAssembly } from '../examples/assembly'
 import { writeCadRecovery } from '../model/cadRecovery'
@@ -264,6 +265,16 @@ export function canApplyAssemblyPreview(preview: AssemblyUiPreview | null, commi
   return !busy && !!preview && preview.generation === generation && preview.baseSignature === committed
     && preview.candidateSignature === candidate && preview.reply.token.length > 0
 }
+const assemblySolveStatusLabels: Record<RigidMateSolveStatus, string> = {
+  underdefined: 'Insuficientemente definido',
+  fullyDefined: 'Completamente definido',
+  inconsistent: 'Restricciones incompatibles',
+  nonConverged: 'Sin convergencia',
+  rankUncertain: 'Rango no determinado',
+  capacityLimit: 'Límite de capacidad',
+  invalidInput: 'Datos no válidos',
+  precisionLimit: 'Límite de precisión',
+}
 export function AssemblySolveSummary({ scopes, document }: { scopes: readonly AssemblyScopeSolveReport[]; document?: AssemblyDocument }) {
   return <div className="assembly-solve-summary" aria-label="Resultado de relaciones">
     {!scopes.length && <p>Resuelve las relaciones para medir los grados de libertad.</p>}
@@ -271,7 +282,7 @@ export function AssemblySolveSummary({ scopes, document }: { scopes: readonly As
       const node = document && (assemblyDefinitionKey(document) === assemblyDefinitionKey(scope.definition) ? document
         : document.definitions.find(value => value.kind === 'assembly' && assemblyDefinitionKey(value) === assemblyDefinitionKey(scope.definition)))
       return <div key={assemblyDefinitionKey(scope.definition)}><strong>{node?.kind === 'assembly' ? node.name : 'Ámbito de ensamblaje'}</strong>
-        <span>{scope.result.status} · {scope.result.localDOF === null ? 'Grados de libertad no determinados' : `${scope.result.localDOF} grados de libertad ${scope.temporaryAnchor ? 'con ancla temporal' : 'locales'}`}</span>
+        <span>{assemblySolveStatusLabels[scope.result.status]} · {scope.result.localDOF === null ? 'Grados de libertad no determinados' : `${scope.result.localDOF} grados de libertad ${scope.temporaryAnchor ? 'con ancla temporal' : 'locales'}`}</span>
         <small>Ámbito rígido · rango {scope.result.rank === null ? 'no determinado' : scope.result.rank}{scope.temporaryAnchor ? ' con ancla temporal' : ''}</small>
         {scope.temporaryAnchor && <p>El componente sólo está fijado durante esta comprobación del movimiento. Tras Aplicar, vuelve a Resolver para medir los grados de libertad sin el ancla.</p>}
         {scope.result.evidence.diagnostics.map((message, index) => <p key={index}>{message}</p>)}</div>

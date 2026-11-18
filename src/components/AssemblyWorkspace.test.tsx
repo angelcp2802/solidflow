@@ -498,6 +498,29 @@ it('labels only the driven scope as temporarily anchored instead of claiming sav
   const natural = { ...anchored, temporaryAnchor: undefined }, naturalHtml = renderToStaticMarkup(<AssemblySolveSummary scopes={[natural]} />)
   expect(naturalHtml).toContain('0 grados de libertad locales'); expect(naturalHtml).not.toContain('con ancla temporal')
 })
+it.each<[AssemblyScopeSolveReport['result']['status'], string, number | null, number | null]>([
+  ['underdefined', 'Insuficientemente definido', 5, 7],
+  ['fullyDefined', 'Completamente definido', 0, 6],
+  ['inconsistent', 'Restricciones incompatibles', null, null],
+  ['nonConverged', 'Sin convergencia', null, null],
+  ['rankUncertain', 'Rango no determinado', null, null],
+  ['capacityLimit', 'Límite de capacidad', null, null],
+  ['invalidInput', 'Datos no válidos', null, null],
+  ['precisionLimit', 'Límite de precisión', null, null],
+])('translates rigid solve status %s while retaining its reported freedom and rank', (status, label, localDOF, rank) => {
+  // Original symbolic DTOs exercise presentation only, never accepted geometry.
+  const document = createAssemblyExample(), report: AssemblyScopeSolveReport = {
+    definition: { id: document.id, revision: document.revision }, result: {
+      status, localDOF, rank, rankRange: [0, 7], localDOFRange: [0, 12], iterations: 0, certificates: [],
+      evidence: { groups: [], diagnostics: ['Diagnóstico original conservado'], maxLengthResidual: 0, maxAngleResidual: 0 },
+    },
+  }
+  const html = renderToStaticMarkup(<AssemblySolveSummary document={document} scopes={[report]} />)
+  expect(html).toContain(label); expect(html).not.toContain(status)
+  expect(html).toContain(localDOF === null ? 'Grados de libertad no determinados' : `${localDOF} grados de libertad locales`)
+  expect(html).toContain(`Ámbito rígido · rango ${rank === null ? 'no determinado' : rank}`)
+  expect(html).toContain('Diagnóstico original conservado')
+})
 it('starts with manipulation off and blocks its controls without a selected visible native scene', () => {
   const document = createAssemblyExample(), before = serializeAssemblyDocument(document)
   const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} initialSaved={before} onOpenPart={() => undefined} />)

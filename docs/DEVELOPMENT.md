@@ -685,6 +685,14 @@ support coordinates, separately from placed world coordinates and native Apply
 authority. Scope filters, hidden/suppressed admission and current-reference
 guards remain authoritative.
 
+## Rigid solve summary labels
+
+The ordinary assembly summary translates every rigid solver status into the
+interface's Spanish vocabulary. `underdefined` is shown as «Insuficientemente
+definido», alongside the reported local freedom and rank. Unknown counts,
+diagnostics and temporary-anchor wording retain their existing meaning. This
+display mapping changes no solver result, saved relation or Apply authority.
+
 ## Root-part scene placement declarations
 
 `expandAssemblyParts` retains a strict detached copy of an already validated

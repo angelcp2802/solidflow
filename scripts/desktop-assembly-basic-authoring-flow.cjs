@@ -825,6 +825,19 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(canonical(event.current) === canonical(doc) && value.status === 'ready' && value.hasToken && value.checks.every(c => c.satisfied && c.lengthResidual <= c.lengthTolerance && c.angleResidual <= c.angleTolerance), 'Exact committed baseline and independently verified private preview');
     check(value.document.mates.length === mateCount && value.checks.length === mateCount && value.scopes.length === 1
       && value.scopes[0].result.localDOF > 0 && !value.scopes[0].temporaryAnchor, 'Exactly the authored relations are verified with remaining freedom and no temporary anchor');
+    const result = value.scopes[0].result;
+    check(result.status === 'underdefined', 'Original preview reports its remaining local freedom');
+    await navigation.reveal('[aria-label="Resultado de relaciones"]');
+    const summary = await waitFor('current rigid solve summary preserves its native freedom and rank', () => page((freedom, rank) => {
+      const host = document.querySelector('[aria-label="Resultado de relaciones"]');
+      const rows = host ? [...host.querySelectorAll('span')] : [], ranks = host ? [...host.querySelectorAll('small')] : [];
+      return host?.checkVisibility({ visibilityProperty: true }) && rows.length === 1 && ranks.length === 1
+        && rows[0].textContent.includes(freedom + ' grados de libertad locales') && ranks[0].textContent === 'Ámbito rígido · rango ' + rank
+        ? { statusAndFreedom: rows[0].textContent, rank: ranks[0].textContent } : false;
+    }, result.localDOF, result.rank));
+    check(summary.statusAndFreedom === 'Insuficientemente definido · ' + result.localDOF + ' grados de libertad locales',
+      'Native solve status is shown in Spanish without exposing its internal enum: ' + JSON.stringify(summary));
+    checks.push({ localizedAssemblySolveSummary: { phase, status: result.status, localDOF: result.localDOF, rank: result.rank, displayed: summary } });
     geometry(value.scene, value.document, 3, phase); relationGeometry(value.document, expectedDistance, expectedAlignment, expectedAngle); await recovery(doc); return value;
   }
   async function apply(candidate, phase, expectedCount = 3, expectedDistance = -12, expectedAngle = null) {
