@@ -108,6 +108,16 @@ tolerances and deadlines.
 
 ## Current resumption point
 
+The 0.36.0 integration candidate combines Spanish rigid-solve summaries, a
+publication wait in the configured-origin test and the exact 0.35.0 evidence.
+Its focused source branches passed their required checks and the affected
+ordinary/configured routes at 704/148 checkpoints. The combined source's
+complete inventory, package, native-window and hosted checks remain pending.
+The available verified demo is the exact 0.35.0 package below. The focused
+test's visibility correction and unit-input stability are documented
+separately; do not infer a frozen combined run from either branch result.
+[0.36.0 source scope](VALIDATION.md#0360-source-follow-up-and-integration-scope--windows-2026-11-18)
+
 The exact 0.35.0 Windows x64 source `96f2336` passed all 124 local commands,
 including build, 11,528 unit/CAD cases, 252 IPC passes with two skips and real
 production-loader/WASM/queue startup. Its terminal audit rehashed all command

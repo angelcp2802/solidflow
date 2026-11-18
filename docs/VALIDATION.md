@@ -1,5 +1,44 @@
 # Validation
 
+## 0.36.0 source follow-up and integration scope — Windows, 2026-11-18
+
+The 0.36.0 candidate combines two focused changes with the recorded 0.35.0
+evidence below. Ordinary rigid-solve summaries now show Spanish descriptions
+for all eight declared statuses, preserving reported degrees of freedom,
+rank, diagnostics and temporary-anchor wording. The configured-origin test
+now waits for the selected first reference to be published and the picker to
+disarm before parsing it. Exact local XY, the empty second role, document,
+history, recovery, worker/file observations, geometric oracles and deadlines
+remain checked. No solver, saved format, dependency or Apply authority changes.
+
+At source `e30482f92a302bae3b69e45053656aca76c7a8e8`, build and 87 focused
+component cases passed. The full unit/CAD suite passed 11,536 cases in 524
+files, followed by 252 IPC passes and two explicit Windows skips. Before the
+display change, eight presentation cases failed and the real renderer showed
+the English `underdefined` token. The final ordinary authoring route passed
+704 checkpoints, including seventeen visible summaries with Spanish text and
+the current native freedom/rank, saved reopening and boundary angles. A first
+fixed attempt reached the correct text but failed a test-only visibility
+assumption after reopening into Components. The corrected test reveals the
+summary through existing navigation. That CJS navigation edit happened while
+the unit run was active; component, compiled products and unit inputs remained
+unchanged. Final IPC/source checks and the complete affected renderer route
+were rerun after the last edit. This is not an immutable whole-tree run.
+
+At source `c3cdb9d6ca19262fd3cf8eb51e0e7e3101db95be`, build, 11,528 unit/CAD
+cases, 252 IPC passes with two skips and the actual production-loader/WASM/
+worker-queue smoke passed. The configured relation route passed 148 checks.
+All nine production members matched the unchanged 0.35.0 products. Its local
+baseline also passed 147 checks: no deterministic local reproduction of the
+hosted selection-publication failure is claimed.
+
+These focused branch results do not replace the combined candidate's exact
+integration inventory, package inspection, native executable checks or hosted
+results. Those 0.36.0 checks remain pending. The verified 0.35.0 demo and its
+failed first hosted run retain the separate evidence below. Installed and
+human acceptance, all nine broader groups and source-delivery gate #5 remain
+open; the known dependency-audit finding has no exclusion or policy change.
+
 ## Packaged 0.35.0 material references and recovered assembly — Windows, 2026-11-18
 
 Frozen source `96f2336dfab7247720c7b6b92119f284fd896cf5`, draft head
