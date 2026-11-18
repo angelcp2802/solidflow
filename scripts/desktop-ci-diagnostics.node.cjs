@@ -8,6 +8,106 @@ const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./deskto
 const { createSymmetryProgress } = require('./desktop-symmetry-progress.cjs');
 const emit = (error, env = { GITHUB_ACTIONS: 'true' }) => { const lines = []; const result = emitDesktopCiFailure(error, { env, write: line => lines.push(line) }); return { result, lines }; };
 
+function nativeCloseCallback({ error = null, stdout = '', stderr = '', elapsedMs = 37 } = {}) {
+  const source = fs.readFileSync(path.join(__dirname, 'desktop-embedded-part-native-close.cjs'), 'utf8');
+  let invocation, now = 100;
+  const context = vm.createContext({
+    module: { exports: {} }, Buffer,
+    process: { env: { SystemRoot: path.parse(__dirname).root || '/', PRIVATE_NATIVE_CLOSE_CANARY: 'never-serialize-environment' } },
+    performance: { now: () => now },
+    require(name) {
+      if (name === 'node:child_process') return { execFile(file, args, options, callback) {
+        invocation = { file, args, options }; now += elapsedMs; callback(error, stdout, stderr);
+      } };
+      assert.ok(['node:fs', 'node:os', 'node:path', 'node:crypto'].includes(name));
+      return require(name);
+    },
+  });
+  // Expose only the callback boundary inside this fake VM. Production exports,
+  // PowerShell, Electron, Win32 messages and the desktop are never invoked.
+  vm.runInContext(source + '\nglobalThis.invokeOwnedClose = postOwnedNativeClose;', context);
+  const promise = context.invokeOwnedClose({ handle: 1n,
+    markedTitle: 'SolidFlow owned close test 00000000-0000-4000-8000-000000000001', decision: 'keep', owned: __dirname });
+  return { promise, invocation };
+}
+
+test('native close diagnostics preserve the exact child error and distinguish killed timeout from a failed exit', async () => {
+  for (const primary of [Object.assign(Error('private command not for output'), { code: 7, killed: false, signal: null }),
+    Object.assign(Error('private command not for output'), { code: null, killed: true, signal: 'SIGTERM' })]) {
+    const { promise, invocation } = nativeCloseCallback({ error: primary, elapsedMs: 15003 });
+    await assert.rejects(promise, error => {
+      assert.equal(error.nativeCloseCause, primary);
+      const diagnostic = error.nativeCloseDiagnostic;
+      assert.equal(diagnostic.decision, 'keep'); assert.equal(diagnostic.elapsedMs, 15003);
+      assert.equal(diagnostic.code, primary.code); assert.equal(diagnostic.killed, primary.killed);
+      assert.equal(diagnostic.signal, primary.signal); assert.equal(diagnostic.hasError, true);
+      assert.doesNotMatch(error.message, /private command|never-serialize-environment|EncodedCommand/);
+      assert.doesNotMatch(require('node:util').inspect(error), /private command|never-serialize-environment/);
+      assert.equal(Object.getOwnPropertyDescriptor(error, 'nativeCloseCause').enumerable, false);
+      return true;
+    });
+    assert.equal(invocation.options.timeout, 15000); assert.equal(invocation.options.maxBuffer, 4096);
+    assert.equal(invocation.options.shell, false); assert.equal(invocation.options.windowsHide, true);
+    assert.deepEqual(Array.from(invocation.args.slice(0, 4)), ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand']);
+  }
+});
+
+test('native close reports spawn and output-buffer failure codes without suppressing an exact success token', async () => {
+  for (const code of ['ENOENT', 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER']) {
+    const primary = Object.assign(Error('sensitive command arguments'), { code });
+    const { promise } = nativeCloseCallback({ error: primary, stdout: 'OWNED_WM_CLOSE_AND_TASK_DIALOG_ACTION_POSTED\n' });
+    await assert.rejects(promise, error => {
+      assert.equal(error.nativeCloseCause, primary); assert.equal(error.nativeCloseDiagnostic.code, code);
+      assert.equal(error.nativeCloseDiagnostic.stdout.receiptExact, true);
+      assert.equal(error.nativeCloseDiagnostic.hasError, true);
+      return true;
+    });
+  }
+});
+
+test('native close requires the unchanged exact receipt even for a successful helper process', async () => {
+  for (const stdout of ['', 'unrelated success', 'OWNED_WM_CLOSE_AND_TASK_DIALOG_ACTION_POSTED\nextra']) {
+    const { promise } = nativeCloseCallback({ stdout });
+    await assert.rejects(promise, error => {
+      assert.equal(error.nativeCloseCause, undefined); assert.equal(error.nativeCloseDiagnostic.hasError, false);
+      assert.equal(error.nativeCloseDiagnostic.stdout.receiptExact, false);
+      assert.equal(error.nativeCloseDiagnostic.stdout.characters, stdout.length);
+      assert.equal(error.nativeCloseDiagnostic.stdout.bytes, Buffer.byteLength(stdout));
+      assert.equal(error.nativeCloseDiagnostic.stdout.sha256, require('node:crypto').createHash('sha256').update(stdout).digest('hex'));
+      return true;
+    });
+  }
+  await nativeCloseCallback({ stdout: 'OWNED_WM_CLOSE_AND_TASK_DIALOG_ACTION_POSTED\r\n' }).promise;
+});
+
+test('native close retains bounded redacted stderr context and full-output digests without exposing paths or tokens', async () => {
+  const stderr = '#< CLIXML\r\nNative close driver: failed C:\\Users\\Original Person\\private\\fixture.ps1\n'
+    + 'https://example.invalid/path?token=secret-url token="secret-token"\n'
+    + 'Authorization: Bearer private-bearer-value\nCookie: private-cookie-value\n' + 'x'.repeat(5000);
+  await assert.rejects(nativeCloseCallback({ stderr }).promise, error => {
+    const diagnostic = error.nativeCloseDiagnostic;
+    assert.equal(diagnostic.stderr.characters, stderr.length);
+    assert.equal(diagnostic.stderr.sha256, require('node:crypto').createHash('sha256').update(stderr).digest('hex'));
+    assert.ok(diagnostic.stderr.context.length <= 240);
+    assert.match(error.message, /CLIXML|Native close driver/);
+    assert.doesNotMatch(error.message, /Original Person|fixture\.ps1|secret-url|secret-token|private-bearer|private-cookie|never-serialize-environment/);
+    assert.ok(error.message.length < 1800);
+    return true;
+  });
+});
+
+test('native close diagnostic fields never invoke hostile error getters or arbitrary coercion', async () => {
+  let calls = 0;
+  const primary = Object.defineProperties({}, Object.fromEntries(['message','code','status','signal','killed','toJSON']
+    .map(key => [key, { get() { calls++; throw Error('getter must not run'); } }])));
+  await assert.rejects(nativeCloseCallback({ error: primary }).promise, error => {
+    assert.equal(error.nativeCloseCause, primary); assert.equal(calls, 0);
+    assert.equal(error.nativeCloseDiagnostic.code, null); assert.equal(error.nativeCloseDiagnostic.status, null);
+    assert.equal(error.nativeCloseDiagnostic.killed, null); assert.equal(error.nativeCloseDiagnostic.signal, null);
+    return true;
+  });
+});
+
 test('only explicit GitHub Actions emits a failure annotation; local and lookalike values remain silent', () => {
   for (const value of [undefined, '', 'false', 'TRUE', '1', true]) {
     const actual = emit(new Error('Original local failure'), { GITHUB_ACTIONS: value });

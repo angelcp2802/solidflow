@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, createHash } = require('node:crypto');
 
 const WM_CLOSE = 0x0010;
 const TITLE = 'Cerrar documento';
@@ -199,6 +199,32 @@ function within(child, parent) {
   return !!relative && relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
 }
 
+function nativeCloseDiagnosticValue(error, key) {
+  if (!error || typeof error !== 'object') return null;
+  let field;
+  try { field = Object.getOwnPropertyDescriptor(error, key); }
+  catch { return null; }
+  const value = field && 'value' in field ? field.value : null;
+  return typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value)
+    || typeof value === 'string' && /^[A-Z0-9_]{1,64}$/.test(value) ? value : null;
+}
+
+function nativeCloseDiagnosticContext(text) {
+  return text.slice(0, 1024)
+    .replace(/https?:\/\/[^\s"'<>]+/gi, '<url>')
+    .replace(/[A-Za-z]:[\\/][^\r\n"'<>]*/g, '<path>')
+    .replace(/\\\\[^\r\n"'<>]*/g, '<path>')
+    .replace(/(^|[^A-Za-z0-9_])\/(?![/*])[^\r\n"'<>]*/g, '$1<path>')
+    .replace(/\b(token|password|secret|authorization|cookie|credential)\s*[:=][^\r\n]*/gi, '$1=<redacted>')
+    .replace(/\b[A-Za-z0-9+/_=-]{48,}\b/g, '<encoded>')
+    .replace(/[\x00-\x1f\x7f-\x9f\u2028\u2029]/g, ' ').slice(0, 240);
+}
+
+function nativeCloseOutputDiagnostic(text) {
+  return Object.freeze({ characters: text.length, bytes: Buffer.byteLength(text),
+    sha256: createHash('sha256').update(text).digest('hex'), context: nativeCloseDiagnosticContext(text) });
+}
+
 function postOwnedNativeClose({ handle, markedTitle, decision, owned }) {
   const systemRoot = process.env.SystemRoot;
   if (!systemRoot || !path.isAbsolute(systemRoot)) throw new Error('Windows system directory is required for the owned close driver.');
@@ -208,11 +234,26 @@ function postOwnedNativeClose({ handle, markedTitle, decision, owned }) {
     SOLIDFLOW_CLOSE_TITLE: markedTitle, SOLIDFLOW_CLOSE_DECISION: decision };
   const args = ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(WIN32_CLOSE, 'utf16le').toString('base64')];
   return new Promise((resolve, reject) => {
+    const started = performance.now();
     execFile(powershell, args, { cwd: owned, env, shell: false, windowsHide: true, timeout: 15000, maxBuffer: 4096 },
       (error, stdout, stderr) => {
         if (error || stdout.trim() !== 'OWNED_WM_CLOSE_AND_TASK_DIALOG_ACTION_POSTED') {
           const detail = stderr.split(/\r?\n/).find(line => line.startsWith('Native close driver: '))?.slice(0, 220);
-          reject(new Error(detail || 'Owned Win32 close helper did not produce its exact receipt.'));
+          // Preserve the callback cause without logging its command/arguments,
+          // environment or stack. A missing receipt must remain a failed test.
+          const diagnostic = Object.freeze({ decision: decision === 'keep' || decision === 'discard' ? decision : 'invalid',
+            hasError: !!error, code: nativeCloseDiagnosticValue(error, 'code'), status: nativeCloseDiagnosticValue(error, 'status'),
+            signal: nativeCloseDiagnosticValue(error, 'signal'), killed: nativeCloseDiagnosticValue(error, 'killed'),
+            elapsedMs: Math.max(0, Math.round(performance.now() - started)),
+            stdout: Object.freeze({ ...nativeCloseOutputDiagnostic(stdout), receiptExact: stdout.trim() === 'OWNED_WM_CLOSE_AND_TASK_DIALOG_ACTION_POSTED' }),
+            stderr: nativeCloseOutputDiagnostic(stderr) });
+          const failure = new Error((detail ? nativeCloseDiagnosticContext(detail) : 'Owned Win32 close helper did not produce its exact receipt.')
+            + ' ' + JSON.stringify(diagnostic));
+          // Error.cause is printed recursively by Node. Retain the real object
+          // privately without exposing its raw command/stderr in normal logs.
+          if (error) Object.defineProperty(failure, 'nativeCloseCause', { value: error });
+          failure.nativeCloseDiagnostic = diagnostic;
+          reject(failure);
           return;
         }
         resolve();

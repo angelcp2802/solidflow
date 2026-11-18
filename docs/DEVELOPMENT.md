@@ -149,6 +149,14 @@ worker-queue probe remain in force. `test:ipc` includes twenty injected-child
 and timer regressions for this launcher; those cases do not launch Electron or
 establish a platform startup result.
 
+The owned Windows close driver retains a failed helper's status/code, signal,
+killed flag, elapsed time and output counts/digests, with bounded redacted
+context. The original child error stays non-enumerable in memory; raw command,
+environment and error stack are not copied into public diagnostics. These
+details distinguish a missing exact receipt from the underlying helper failure;
+they do not convert it to a pass or alter the 15-second helper deadline, 4 KiB
+output cap, authenticated HWND/dialog checks or owned-profile cleanup.
+
 ### Optional Windows installer acceptance
 
 Run the **CI** workflow manually on the intended ref and enable
