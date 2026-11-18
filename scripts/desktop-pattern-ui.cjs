@@ -142,6 +142,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-assembly-structural-step-insertion', caption: 'structural STEP component insertion' }),
   'world-limit': Object.freeze({ fixture: 'pattern-world-limit-original.json', entry: 'desktop-pattern-world-limit.cjs', worldLimit: 'first',
     test: 'production-renderer-fixed-world-limit', caption: 'fixed world-limit' }),
+  'sketch-support': Object.freeze({ originalRecipe: 'desktop-pattern-sketch-support-original.cjs', entry: 'desktop-pattern-sketch-support.cjs',
+    test: 'production-renderer-associated-sketch', caption: 'associated sketch support' }),
   'datum-limit': Object.freeze({ entry: 'desktop-pattern-datum-limit.cjs', worldLimit: 'datum',
     test: 'production-renderer-associated-datum-limit', caption: 'associated datum limit' }),
   'world-face-limit': Object.freeze({ fixture: 'pattern-world-face-limit-original.json', entry: 'desktop-pattern-world-face-limit.cjs', worldLimit: 'face',
@@ -383,7 +385,7 @@ async function launch() {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-assembly-basic-authoring-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario.configuredPicking) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-assembly-configured-picking-original.cjs')()), { flag: 'wx' });
-    } else if (activeScenario === SCENARIOS['part-fresh-sketch'] || activeScenario.referenceRepair) {
+    } else if (activeScenario === SCENARIOS['sketch-support'] || activeScenario === SCENARIOS['part-fresh-sketch'] || activeScenario.referenceRepair) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./' + activeScenario.originalRecipe)()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-revolution']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-revolution-original.cjs')()), { flag: 'wx' });
@@ -759,7 +761,8 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
     const method = document.querySelector('select[aria-label="Método de repetición de operaciones"]');
     const worldLimit = document.querySelector('input[aria-label^="Mantener plano límite fijo de "]');
     const sample = { scope: scope?.value ?? null, applyDisabled: apply ? apply.disabled : null,
-      method: method?.value ?? null, transformLimitChecked: document.querySelector('input[aria-label^="Transformar plano límite de "]')?.checked ?? null,
+      method: method?.value ?? null, sketchSupport: document.querySelector('select[aria-label="Colocación de los soportes de croquis"]')?.value ?? null,
+      transformLimitChecked: document.querySelector('input[aria-label^="Transformar plano límite de "]')?.checked ?? null,
       faceOwner: document.querySelector('select[aria-label^="Cuerpo de la cara límite de "]')?.value ?? null, worldLimitChecked: worldLimit ? worldLimit.checked : null }, key = JSON.stringify(sample);
     if (key !== previousUi && observations.ui.length < 512) {
       previousUi = key; observations.ui.push({ eventSerial: ++observations.eventSerial, ...sample });
@@ -2136,6 +2139,8 @@ async function runInElectron() {
     ? require('./desktop-pattern-until-next-flow.cjs')({ fixtures, outputs, inputPaths, evaluate, observe, waitFor, click, menu,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
+    : activeScenario === SCENARIOS['sketch-support']
+    ? require('./desktop-pattern-sketch-support-flow.cjs')({ expected, evaluate, observe, waitFor, click, menu, checks, consoleErrors, failedRequests, ipc, input, output, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : activeScenario.worldLimit
     ? require('./desktop-pattern-world-limit-flow.cjs')({ datum: activeScenario.worldLimit === 'datum', face: activeScenario.worldLimit === 'face', second: activeScenario.worldLimit === 'second',
       expected, expectedIds, evaluate, observe, waitFor, click, pointer, menu, checks,

@@ -116,7 +116,7 @@ distinguishes complete tools, separated forward misses, contact and incomplete
 limits, including the selected/ALL rules. No additional reference-policy field
 or document version is introduced for this termination.
 
-A world limit can reference a principal plane or a face of an explicitly
+A world limit can reference a principal plane, a principal-rooted datum or a face of an explicitly
 identified historical body. For a face, each saved policy includes
 `owner: { bodyId, sourceFeatureId }` and the extrusion side's locator. The
 normal property panel asks for the historical owner. Existing principal-plane
@@ -126,8 +126,8 @@ orientation, and uses the copy builder's modification history to identify the
 oriented occurrence in the detached historical body. A missing, ambiguous,
 forged or retired face fails. The face lease and owner are build-local.
 A world limit stays at the historical location through pattern placements.
-Transformed face limits, same-instance parent face roles, associative sketch
-supports and datum limits still require their own correspondence evidence. An optional saved surface offset carries either
+Transformed face limits, same-instance parent face roles and face-supported sketches
+still require their own correspondence evidence. An optional saved surface offset carries either
 a signed distance on the oriented support or a translation in document axes.
 Both extrusion directions retain the declaration. The world-principal recipe
 applies the offset to its own limit before native termination. A valid
@@ -180,3 +180,28 @@ model/command, seven SSR, 18 native scope/evaluator, eight saved-engine and four
 contextual deletion cases. Their provenance is linked from the
 [regeneration contract](FEATURE_REGENERATION.md#dynamic-all-scope). These counts
 describe written fixtures, not a combined execution result or interaction proof.
+
+### Explicitly transformed sketch supports
+
+For a selected extruded cut or merge with fixed local dimensions, a sketch
+on an active principal-rooted datum chain may name `support` on the actual
+sketch ID and on each ancestor datum ID. Each record contains only `featureId`,
+`path` and `placement: "transform"`. The selected feature owns the sketch
+through its earlier `sketchId`; a datum belongs through the earlier support
+chain. Repeated locators and disconnected or future nodes are rejected.
+Suppression retains historical IDs on file and prevents evaluation of an
+unavailable support. Empty or partially assigned chains require an explicit
+editor choice before native Apply. Existing files with absent support policy
+retain their authored graph. The support table shares the closure limit of 256
+definitions and the existing end-policy count stays capped at 32.
+
+Datum offsets and the sketch's own signed offset resolve on the original support
+before the single occurrence transform. The physical sketch frame uses the
+existing parity rule, keeping local winding and constraint IDs fixed. Each
+entity occurrence requires a fresh fully defined solve in the original chart
+and checks branch and driven values against the source checkpoint. Out-of-date
+owner, address, datum, target shape or source solve rejects the proposal.
+An end-condition offset is independent of those intrinsic offsets. Its normal
+follows its placed support and a literal XYZ translation uses world coordinates
+after support placement. World/mixed sketch placement, face-supported sketches,
+variable local constraints and same-instance face roles remain open.

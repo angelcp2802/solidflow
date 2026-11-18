@@ -1,4 +1,4 @@
-import { principalRecipeDatumChain } from '../model/recipeDatumChain';
+import { principalRecipeDatumChain, transformedSketchSupports } from '../model/recipeDatumChain';
 import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 import type { Feature, FeatureError, RepetitionFeature } from '../cad/kernel.types';
 
@@ -21,6 +21,14 @@ export function featurePatternBuildMessage(diagnostic: FeatureError, pattern: Re
   const operation = pattern.featurePattern;
   const { message } = diagnostic;
   if (diagnostic.id !== pattern.id || pattern.source.mode !== 'features' || operation?.mode !== 'regenerate') return message;
+  const supportSuffix = ':support: ' + missingPolicy;
+  if (operation.scope === 'selected' && message.endsWith(supportSuffix)) {
+    const id = message.slice(0, -supportSuffix.length), lookup = new Map(prefix.map(item => [item.id, item]));
+    if (!operation.referencePolicies.some(policy => policy.path === 'support' && policy.featureId === id)
+      && pattern.source.featureIds.some(seed => transformedSketchSupports(lookup.get(seed), key => lookup.get(key)).some(item => item.id === id))) {
+      return 'Selecciona «Transformar con cada copia» en «Soportes de croquis» para ' + lookup.get(id)!.name + '.';
+    }
+  }
   const limit = missingLimits.find(({ suffix }) => message.endsWith(suffix));
   if (!limit) return message;
   const seedId = message.slice(0, -limit.suffix.length);

@@ -13,6 +13,7 @@ import { NativeCleanupError, withNativeOwners, type NativeOwners } from './kerne
 import { patternPlan } from './kernel.patterns';
 import { exactStateKey, extractRecipeClosure, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration,
   transformedExtrusionFrame, type RegenerationRequest } from '../model/featureRecipes';
+import { withFeaturePatternMode, withTransformedSketchSupports } from '../model/featurePatternCommands';
 import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation } from './kernel.feature-recipes';
 import { createSourceSketchSolveRegistry, type SourceSketchSupportContext } from './kernel.sketch-solves';
 import * as bodies from './kernel.bodies';
@@ -738,3 +739,76 @@ it.each(rows.flatMap(row => [false, true].map(primitive => ({ ...row, primitive 
     metrics(engine, A, 800, 520, row.min, row.max);
   } finally { observe.mockRestore(); solver.mockRestore(); }
 }), 60_000);
+
+it.each([false, true])('opens and rebuilds the saved opposite-normal sketch on a quarter turn (primitive=%s)', primitive => usingEngine(engine => {
+  const parent: Feature = { id: 'profile-datum-a', type: 'plane', name: 'Original reversed XY at 6', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 6 };
+  const child: Feature = { ...parent, id: 'profile-datum-b', name: 'Original negative Z at 5', support: { kind: 'plane', planeId: parent.id }, reversed: false, offset: 1 };
+  const profile = solvedCircle();
+  profile.points[0].y = -5;
+  const fixed = profile.constraints.find(item => item.type === 'fix');
+  if (fixed?.type !== 'fix') throw Error('Original circle needs its fixed centre.');
+  fixed.y = -5;
+  const sketch: SketchFeature = { id: 'profile-c', type: 'sketch', name: 'Original negative Z at 4', suppressed: false,
+    plane: 'XZ', offset: 1, support: { kind: 'plane', planeId: child.id },
+    profile: primitive ? { kind: 'circle', center: [5, -5], radius: 2 } : profile };
+  const p = pattern('circularPattern');
+  if (p.type !== 'circularPattern' || p.featurePattern?.mode !== 'regenerate') throw Error('Missing original pattern');
+  p.axis = { origin: [12, 0, 0], direction: [0, 1, 0] }; p.angle = 90;
+  p.featurePattern.referencePolicies = [parent, child, sketch].map(item => ({ featureId: item.id, path: 'support', placement: 'transform' }));
+  const prefix = document([parent, child, ...box('create-S', 'S', [0, 0, 0], [10, 10, 6]), sketch,
+    { id: 'seed', name: 'Original R2x2 cavity', type: 'cut', suppressed: false, sketchId: sketch.id, depth: 2, symmetric: false,
+      bodyScope: [{ bodyId: 'S', sourceFeatureId: 'create-S' }] }, ...box('create-A', 'A', [12, 0, 2], [18, 10, 12])]);
+  const saved = parseDocument(serializeDocument(addFeature(prefix, p)));
+  const realSolve = vi.spyOn(profiles, 'solveEntityProfileResult');
+  try {
+    build(engine, saved);
+    expect(realSolve).toHaveBeenCalledTimes(primitive ? 0 : 2);
+    if (!primitive) expect(realSolve.mock.results[1].value.drivenValues['measured-radius']).toBeCloseTo(2, 7);
+    metrics(engine, S, 600 - 8 * Math.PI, 440 + 16 * Math.PI, [0, 0, 0], [10, 10, 6]);
+    metrics(engine, output(), 600 - 8 * Math.PI, 440 + 16 * Math.PI, [12, 0, 2], [18, 10, 12]);
+    // Start (5,5,4) -> (16,5,7). The ray -Z becomes -X. The real cut spans x=14..16.
+    probe(engine, output(), [15, 5, 7], false); probe(engine, output(), [16.5, 5, 7], true);
+    probe(engine, output(), [13.5, 5, 7], true); probe(engine, S, [5, 5, 3], false);
+  } finally { realSolve.mockRestore(); }
+}), 60_000);
+
+it('guards a saved associated sketch against another active address, physical owner and earlier source epoch', () => usingEngine((engine, owners) => {
+  const original = validateDocument(createRequire(import.meta.url)('../../scripts/desktop-pattern-sketch-support-original.cjs')());
+  const geometry = original.features.at(-1)! as RepetitionFeature, history = new Map(original.features.slice(0,-1).map(item => [item.id,item]));
+  const recipe = withTransformedSketchSupports(withFeaturePatternMode(geometry,'regenerate'),history,true);
+  if (recipe.type !== 'circularPattern') throw Error('Original quarter-turn missing');
+  const doc = parseDocument(serializeDocument(updateFeature(original, geometry.id, recipe)));
+  const stage = recipeEvaluation.stageFeatureRecipeEvaluation;
+  let priorRegistry: Parameters<typeof stage>[3]['sourceSketchSolves'];
+  const capture = vi.spyOn(recipeEvaluation,'stageFeatureRecipeEvaluation').mockImplementation((evaluation,catalog,update,current) => {
+    priorRegistry = current.sourceSketchSolves;
+    return stage(evaluation,catalog,update,current);
+  });
+  try { build(engine,doc); } finally { capture.mockRestore(); }
+  expect(priorRegistry).toBeTruthy();
+  const stale = vi.spyOn(recipeEvaluation,'stageFeatureRecipeEvaluation').mockImplementation((evaluation,catalog,update,current) =>
+    stage(evaluation,catalog,update,{ ...current,sourceSketchSolves:priorRegistry }));
+  try {
+    const result = engine.build(doc.features);
+    expect(result.featureErrors).toHaveLength(1); expect(result.featureErrors[0].message).toContain('epoch');
+    metrics(engine,A,1000,600,[8,0,2],[18,10,12]);
+  } finally { stale.mockRestore(); }
+  const create = recipeBridge.buildRecipeInstanceTool;
+  for (const fault of ['address','physical-owner'] as const) {
+    const inputDoc = fault==='address' ? updateFeature(doc,recipe.id,{...recipe,count:3}) : doc;
+    const wrong = vi.spyOn(recipeBridge,'buildRecipeInstanceTool').mockImplementation(input => {
+      const other = input.closure.request.plan.transforms.find(item => item.key !== input.address);
+      if (fault==='address' && !other) throw Error('No independent active address');
+      return create(fault==='address' ? { ...input,address:other!.key } :
+        { ...input,workingTarget:owners.own(bodies.copyBodyShape(input.workingTarget)) });
+    });
+    try {
+      const result = engine.build(inputDoc.features);
+      expect(result.featureErrors.map(item=>item.id)).toEqual([recipe.id]);
+      expect(result.featureErrors[0].message).toContain('instancia, el cuerpo o la revisión');
+      metrics(engine,A,1000,600,[8,0,2],[18,10,12]);
+    } finally { wrong.mockRestore(); }
+  }
+  build(engine,doc);
+}),60_000);

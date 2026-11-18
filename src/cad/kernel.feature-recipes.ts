@@ -8,7 +8,7 @@ import {
   bodyBoolean, copyBodyShape, createConservativeBodyBounds, validateBodyShape, type NativeBodyCatalog,
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
-import { buildRecipeInstanceTool, resolveRecipeInstanceDirections, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
+import { buildRecipeInstanceTool, resolveRecipeInstanceDirections, resolveRecipeInstanceUntilNext, type RecipeInstanceToolInput } from './kernel.recipe-instance';
 import { readHistoricalRecipeFace, type NativeRecipeFaceLease } from './kernel.recipe-face-history';
 import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
@@ -398,7 +398,9 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             const applications = groups.get(bodyId)!;
             for (const application of applications) assertParent(application, bodyId, transform.key, outputs);
             const before = current.get(bodyId)!, inputRevision = revisions.get(bodyId)!;
-            const assertWorkingCurrent = () => {
+            const assertWorkingCurrent: NonNullable<RecipeInstanceToolInput['assertWorkingCurrent']> = occurrence => {
+              if (occurrence && (occurrence.featureId !== operation.featureId || occurrence.address !== transform.key ||
+                  occurrence.targetBodyId !== bodyId || occurrence.workingTarget !== before)) throw Error('La instancia, el cuerpo o la revisión del croquis asociado han cambiado.');
               if (current.get(bodyId) !== before || revisions.get(bodyId) !== inputRevision) throw new Error('The recipe working owner/revision changed during tool construction.');
               if (sketchSolves) assertSourceSketchSolvesCurrent(sketchSolves.registry, sketchSolves.checkpoint, input.features);
             };

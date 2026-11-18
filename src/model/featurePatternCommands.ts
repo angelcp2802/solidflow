@@ -1,3 +1,4 @@
+import { MAX_RECIPE_DEFINITIONS, transformedSketchSupports } from './recipeDatumChain'
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types'
 import { bodyReferenceCreationFeatureId, featureBodyOutputIncludes } from './bodyReferences'
 import { activeFeaturePatternAddresses, featurePatternSourceReferences, isDynamicFeaturePattern, isAllFeaturePattern, type AnyFeaturePatternBinding, type FeaturePatternOperation } from './featurePatterns'
@@ -19,7 +20,7 @@ export function withFeaturePatternTargets(feature: RepetitionFeature, targets: r
 }
 
 /** Newly selected seed features require an explicit output choice, never a guessed binding. */
-export function withFeaturePatternSeeds(feature: RepetitionFeature, featureIds: readonly string[]): RepetitionFeature {
+export function withFeaturePatternSeeds(feature: RepetitionFeature, featureIds: readonly string[], history?: ReadonlyMap<string, Feature>): RepetitionFeature {
   if (!feature.featurePattern || feature.source.mode !== 'features') return feature
   const current = feature.featurePattern
   if (current.mode === 'regenerate' && current.scope === 'selected' && current.variation.kind !== 'none'
@@ -28,11 +29,18 @@ export function withFeaturePatternSeeds(feature: RepetitionFeature, featureIds: 
   }
   const selected = new Set(featureIds), next = structuredClone(feature), operation = next.featurePattern!
   const source = { ...feature.source, featureIds: [...featureIds] }
+  const supportIds = new Set(history ? featureIds.flatMap(id => transformedSketchSupports(history.get(id), key => history.get(key), true).map(item => item.id)) : [])
+  if (!history && operation.mode === 'regenerate' && operation.referencePolicies.some(policy => policy.path === 'support')) {
+    const priorIds = feature.source.featureIds;
+    if (featureIds.length === priorIds.length && featureIds.every((id, i) => id === priorIds[i])) return next;
+    throw Error('Se necesita el historial de soportes para cambiar las semillas.')
+  }
+  const keepPolicy = (policy: { path: string; featureId: string }) => (policy.path === 'support' ? supportIds : selected).has(policy.featureId)
   return isDynamicFeaturePattern(operation)
     ? { ...next, source, featurePattern: { ...operation, bindings: operation.bindings.filter(binding => selected.has(binding.source.sourceFeatureId)),
-      referencePolicies: operation.referencePolicies.filter(policy => selected.has(policy.featureId)) } }
+      referencePolicies: operation.referencePolicies.filter(keepPolicy) } }
     : { ...next, source, featurePattern: { ...operation, bindings: operation.bindings.filter(binding => selected.has(binding.source.sourceFeatureId)),
-      ...(operation.mode === 'regenerate' ? { referencePolicies: operation.referencePolicies.filter(policy => selected.has(policy.featureId)) } : {}) } }
+      ...(operation.mode === 'regenerate' ? { referencePolicies: operation.referencePolicies.filter(keepPolicy) } : {}) } }
 }
 
 /** Source selection and routing are explicit edits; missing coverage stays invalid. */
@@ -94,6 +102,7 @@ export function withFeaturePatternScope(feature: RepetitionFeature, scope: 'sele
       referencePolicies: operation.referencePolicies, variation: { kind: 'none' } } }
   }
   if (isAllFeaturePattern(operation)) return next
+  if (operation.referencePolicies.some(policy => policy.path === 'support')) throw Error('Los soportes de croquis transformados requieren cuerpos seleccionados.')
   if (operation.variation.kind !== 'none') throw new Error('Quita las variaciones por instancia antes de usar todos los cuerpos.')
   return { ...next, featurePattern: { mode: 'regenerate', scope: 'all', reevaluateAt: 'patternInput',
     bindings: operation.bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: 'scope' })),
@@ -195,4 +204,16 @@ export function withFeaturePatternWorldLimit(feature: RepetitionFeature, feature
   operation.referencePolicies = operation.referencePolicies.filter(policy => policy.featureId !== featureId || policy.path !== path)
   if (enabled) operation.referencePolicies.push({ featureId, path, placement, ...(owner ? { owner: { ...owner } } : {}) })
   return next
+}
+
+export function withTransformedSketchSupports(feature: RepetitionFeature, history: ReadonlyMap<string, Feature>, enabled: boolean): RepetitionFeature {
+  const next = structuredClone(feature), operation = next.featurePattern;
+  if (next.source.mode !== 'features' || operation?.mode !== 'regenerate' || operation.scope !== 'selected' || operation.variation.kind !== 'none' || typeof enabled !== 'boolean') {
+    throw Error('El soporte transformado requiere semillas y cuerpos seleccionados.');
+  }
+  const ids = new Set(next.source.featureIds.flatMap(id => transformedSketchSupports(history.get(id), key => history.get(key)).map(item => item.id)));
+  if (enabled && (!ids.size || ids.size > MAX_RECIPE_DEFINITIONS)) throw Error('El conjunto de soportes no está disponible.');
+  operation.referencePolicies = operation.referencePolicies.filter(policy => policy.path !== 'support');
+  if (enabled) for (const featureId of ids) operation.referencePolicies.push({ featureId, path: 'support', placement: 'transform' });
+  return next;
 }

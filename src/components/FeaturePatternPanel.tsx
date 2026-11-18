@@ -1,9 +1,9 @@
-import { principalRecipeDatumChain } from '../model/recipeDatumChain';
+import { MAX_RECIPE_DEFINITIONS, principalRecipeDatumChain, transformedSketchSupports } from '../model/recipeDatumChain';
 import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 import { useMemo, useState } from 'react';
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types';
 import { sameBodyReference } from '../model/bodyCommands';
-import { withFeaturePatternBindings, withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
+import { withFeaturePatternBindings, withFeaturePatternWorldLimit, withTransformedSketchSupports } from '../model/featurePatternCommands';
 import { isAutoFeaturePattern, isDynamicFeaturePattern, MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS, type AnyFeaturePatternBinding } from '../model/featurePatterns';
 import { bodyPatternHistoryChoices, type BodyPatternEditor, type BodyPatternHistoryStep } from './BodyPatternPanel';
 import FeaturePatternDepthVariation from './FeaturePatternDepthVariation';
@@ -29,7 +29,7 @@ export function FeaturePatternWorldLimits({ feature, features, loading, onChange
       end.target.kind === 'face' && isBodyCatalogFaceKey(end.target.face.key) && !selected.has(end.target.face.sourceFeatureId))
       ? [{ source, path, target: end.target }] : []);
   });
-  const staleLimits = operation.referencePolicies.filter(policy => !worldLimits.some(limit => limit.source.id === policy.featureId && limit.path === policy.path &&
+  const staleLimits = operation.referencePolicies.filter(policy => policy.path !== 'support' && !worldLimits.some(limit => limit.source.id === policy.featureId && limit.path === policy.path &&
     (limit.target.kind !== 'face' ? !policy.owner : policy.owner?.sourceFeatureId === limit.target.face.sourceFeatureId)));
   if (!worldLimits.length && !staleLimits.length) return null;
   return <div className="property-section">
@@ -75,12 +75,40 @@ export function FeaturePatternWorldLimits({ feature, features, loading, onChange
     {staleLimits.map(policy => <label key={JSON.stringify([policy.featureId, policy.path])} className="check-option">
       <input type="checkbox" checked disabled={loading}
         aria-label={policy.path === 'secondDirection.endCondition.target' ? 'Quitar plano límite no disponible de dirección 2' : 'Quitar plano límite no disponible'}
-        onChange={() => { if (!loading) onChange({ featurePattern: withFeaturePatternWorldLimit(feature, policy.featureId, false, policy.path).featurePattern }); }} />
+        onChange={() => { if (!loading && policy.path !== 'support') onChange({ featurePattern: withFeaturePatternWorldLimit(feature, policy.featureId, false, policy.path).featurePattern }); }} />
       <span>Plano límite no disponible{policy.path === 'secondDirection.endCondition.target' ? ' de dirección 2' : ''} · quitar</span>
     </label>)}
     {worldLimits.some(item => item.target.kind === 'face')
       ? <p className="muted-small">Cada copia termina en la superficie histórica elegida, en su posición original.</p>
       : <p className="muted-small">Su profundidad se recalcula desde la posición de la copia.</p>}
+  </div>;
+}
+
+function SketchSupportPlacement({ feature, features, loading, onChange }: {
+  feature: RepetitionFeature; features: readonly Feature[]; loading: boolean; onChange: (patch: Partial<Feature>) => void;
+}) {
+  const history = useMemo(() => new Map(features.map(item => [item.id, item])), [features]);
+  const operation = feature.featurePattern;
+  if (feature.source.mode !== 'features' || operation?.mode !== 'regenerate' || operation.scope !== 'selected') return null;
+  const members = new Set(feature.source.featureIds.flatMap(id => transformedSketchSupports(history.get(id), key => history.get(key))));
+  const policies = operation.referencePolicies.filter(policy => policy.path === 'support');
+  if (!members.size && !policies.length) return null;
+  const ids = new Set(policies.map(policy => policy.featureId));
+  const complete = members.size === ids.size && [...members].every(item => ids.has(item.id));
+  return <div className="property-section">
+    <h3>Soportes de croquis</h3>
+    <label className="number-field"><span>Colocación de los soportes</span>
+      <select aria-label="Colocación de los soportes de croquis" disabled={loading}
+        value={!ids.size ? '' : complete ? 'transform' : 'partial'} onChange={event => {
+          if (!loading && ['', 'transform'].includes(event.target.value)) onChange({
+            featurePattern: withTransformedSketchSupports(feature, history, event.target.value === 'transform').featurePattern });
+        }}>
+        <option value="">Sin asignar</option>
+        {!complete && ids.size > 0 && <option value="partial" disabled>Asignación incompleta</option>}
+        <option value="transform" disabled={!members.size || members.size > MAX_RECIPE_DEFINITIONS}>Transformar con cada copia</option>
+      </select>
+    </label>
+    <ul>{[...members].map(item => <li key={item.id}>{item.name} · {item.id}</li>)}</ul>
   </div>;
 }
 
@@ -124,6 +152,7 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
   };
   const targetName = (reference: BodyReference) => editor.bodies.find(body => sameBodyReference(body.ref, reference))?.name ?? 'Destino no disponible';
   return <>
+    <SketchSupportPlacement feature={feature} features={features} loading={editor.loading} onChange={onChange} />
     <FeaturePatternWorldLimits feature={feature} features={features} history={history.steps} loading={editor.loading} onChange={onChange} />
     <FeaturePatternDepthVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />
     <FeaturePatternSketchVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />

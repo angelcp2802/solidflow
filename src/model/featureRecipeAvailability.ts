@@ -1,4 +1,4 @@
-import { principalRecipeDatumChain } from './recipeDatumChain';
+import { principalRecipeDatumChain, transformedSketchSupports } from './recipeDatumChain';
 import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
 import { isAllFeaturePattern } from './featurePatterns';
@@ -24,7 +24,8 @@ export function recipeSeedUnavailableReason(seed: Feature | undefined, features:
   }
   const sketch = features.get(seed.sketchId);
   if (sketch?.type !== 'sketch' || sketch.suppressed) return 'El croquis de la operación no está disponible. Recupera el croquis o quita la referencia.';
-  if (sketch.support) return 'Recalcular todavía no admite croquis apoyados en caras o planos asociados. Elige otra semilla o Copiar geometría.';
+  if (sketch.support && !transformedSketchSupports(seed, id => features.get(id)).length) return 'Este croquis necesita un plano de referencia anterior, activo y derivado de un plano principal para recalcular su soporte.';
+  if (sketch.support && scope !== 'selected') return 'Los croquis con soportes transformados requieren cuerpos seleccionados.';
   const ends = [seed.endCondition, ...(seed.secondDirection?.enabled ? [seed.secondDirection.endCondition] : [])];
   for (const end of ends) {
     if (end?.kind !== 'upToSurface' || end.target.kind === 'principal') continue;

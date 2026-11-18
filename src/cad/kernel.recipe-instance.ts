@@ -25,7 +25,7 @@ export interface RecipeInstanceToolInput {
   readonly datumHistory?: { datums: ReadonlyMap<string, RecipeDatumCheckpoint>; registry: SourceSketchSolveRegistry; features: readonly Feature[] };
   readonly faceHistory?: { epoch: object; states: ReadonlyMap<string, NativeRecipeSourceState> };
   /** Evaluator closure over the actual working owner/revision and source epoch. */
-  readonly assertWorkingCurrent?: () => void;
+  readonly assertWorkingCurrent?: (occurrence?: Pick<RecipeInstanceToolInput, 'featureId' | 'address' | 'targetBodyId' | 'workingTarget'>) => void;
 }
 export interface OwnedRecipeInstanceTool {
   readonly operation: 'add' | 'subtract';
@@ -106,6 +106,8 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
     input.assertWorkingCurrent();
   }
   if (sketch?.type === 'sketch' && sketch.support?.kind === 'plane') {
+    if (!input.assertWorkingCurrent) throw Error('El croquis asociado requiere una instancia activa.');
+    input.assertWorkingCurrent(input);
     const frame = offsetPlaneFrame(historicalDatumFrame(input, sketch.support.planeId), sketch.offset);
     if (!samePlaneFrame(frame, resolved.sourceFrame)) throw Error('El plano asociado del croquis ha cambiado.');
   }

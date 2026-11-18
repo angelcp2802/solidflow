@@ -1,3 +1,4 @@
+import { transformedSketchSupports } from './recipeDatumChain'
 import type { BodyOperation, BodyPatternOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, RepetitionFeature, RevolutionAxis, RevolutionExtent, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
 import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semantic-references'
 import { validateEntityProfile } from '../sketch/validation'
@@ -908,6 +909,15 @@ export function validateDocument(value: unknown): Document {
     }
     if (parsed.type === 'linearPattern' || parsed.type === 'circularPattern' || parsed.type === 'mirror') {
       const references = parsed.source.mode === 'features' ? parsed.source.featureIds : parsed.source.mode === 'body' ? [parsed.source.sourceFeatureId] : []
+      if (parsed.featurePattern?.mode === 'regenerate' && parsed.featurePattern.referencePolicies.some(policy => policy.path === 'support')) {
+        const lookup = (id: string) => seen.get(id);
+        const members = new Set(references.flatMap(id => transformedSketchSupports(lookup(id), lookup, true).map(item => item.id)));
+        parsed.featurePattern.referencePolicies.forEach((policy, index) => {
+          if (policy.path === 'support' && !members.has(policy.featureId)) {
+            fail(path + '.featurePattern.referencePolicies[' + index + '].featureId', 'el soporte debe pertenecer al croquis o a un plano anterior de una semilla seleccionada');
+          }
+        });
+      }
       references.forEach((id, index) => {
         const seed = seen.get(id)
         if (!seed || seed.type === 'sketch' || seed.type === 'plane') {

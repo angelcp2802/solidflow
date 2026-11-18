@@ -188,7 +188,7 @@ export default function PatternPanel({
     const source: PatternSource = feature.featurePattern && incoming.mode === 'features'
       ? { ...incoming, geometryPattern: feature.featurePattern.mode === 'geometry' } : incoming;
     const scoped = feature.featurePattern && source.mode === 'features'
-      ? withFeaturePatternSeeds(feature, source.featureIds) : null;
+      ? withFeaturePatternSeeds(feature, source.featureIds, sourceIndex) : null;
     onChange({ source, ...(scoped ? { featurePattern: scoped.featurePattern } : {}),
       ...(feature.type === 'mirror' && source.mode === 'features' ? { mergeBodies: false } : {}) });
   };

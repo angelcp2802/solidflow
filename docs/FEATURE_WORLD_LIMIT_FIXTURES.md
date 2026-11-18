@@ -170,3 +170,20 @@ datum. A translation is then applied with its original world XYZ components.
 The original oblique vector (0.25, −0.75, 2) mm yields a 5 mm cut after each
 half-turn and mirror in the native fixture. Applying the vector before placement
 would give 9 mm. Exact native material probes lie 0.5 mm on either side of each end.
+
+### Transformed sketch support
+
+The project-original construction in `scripts/desktop-pattern-sketch-support-original.cjs`
+defines a 90-degree rotation about Y at (12, 0, 0) mm. Two oriented datums place
+the sketch at z = 4 mm with normal −Z. Its chart point (5, −5) is at (5, 5, 4)
+in part coordinates. Its occurrence starts at (16, 5, 7) mm with ray −X.
+An entity circle has authored radius 1 mm, a driving radius of 2 mm and a driven
+measurement. The original cut removes 4 mm of material from the source. Its
+geometric copy removes 4 mm from the target. Regeneration removes 8 mm,
+giving target volume 1000 − 32π mm³. `node scripts/desktop-pattern-sketch-support.cjs`
+checks both target volumes and the source graph through the real selector,
+verified preview, Cancel, Apply, Undo, Redo, Save As and reopen. The native
+blind variants check a 2 mm enclosed cavity against both material probes and
+independent surface/volume expectations. Earlier-node edits, a different
+active address, another physical shape and another reconstruction epoch
+invalidate the corresponding native proposals.

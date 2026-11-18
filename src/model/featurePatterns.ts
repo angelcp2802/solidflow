@@ -1,3 +1,4 @@
+import { MAX_RECIPE_DEFINITIONS } from './recipeDatumChain'
 import type { BodyReference, RepetitionFeature } from '../cad/kernel.types'
 import { bodyPatternAddresses } from './bodyPatterns'
 import { validRecipeAutoCaptureFingerprint, type RecipeAutoScopeIntent } from './featureRecipeAutoScope'
@@ -19,7 +20,7 @@ interface FeaturePatternRoutes {
 /** External world limit. A face additionally names its exact historical body state. */
 export interface FeaturePatternReferencePolicy {
   featureId: string
-  path: 'endCondition.target' | 'secondDirection.endCondition.target'
+  path: 'support' | 'endCondition.target' | 'secondDirection.endCondition.target'
   placement: 'world' | 'transform'
   owner?: BodyReference
 }
@@ -170,7 +171,7 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
   const addresses = activeFeaturePatternAddresses(feature)
   const policyTable = Object.getOwnPropertyDescriptor(operation, 'referencePolicies')
   if (regenerate && ((!dynamic && operation.scope !== 'selected') || all && operation.reevaluateAt !== 'patternInput'
-    || !policyTable || !Object.hasOwn(policyTable, 'value') || !policyTable.enumerable || !dense(policyTable.value, 0, 32)
+    || !policyTable || !Object.hasOwn(policyTable, 'value') || !policyTable.enumerable || !dense(policyTable.value, 0, 32 + MAX_RECIPE_DEFINITIONS)
     || !validVariation(ownData(operation, 'variation')?.value, dynamic, seeds, addresses))) {
     throw new Error('El recálculo requiere un alcance explícito y políticas de límites válidas. La variación requiere una semilla, cuerpos seleccionados e instancias activas distintas.')
   }
@@ -180,6 +181,7 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
     throw new Error('AUTO requiere identidades capturadas únicas, procedencia explícita y seguimiento de la misma identidad.')
   }
   if (regenerate) {
+    let supportCount = 0, limitCount = 0
     const policies = policyTable!.value as unknown[], used = new Set<string>()
     for (let index = 0; index < policies.length; index++) {
       const entry = Object.getOwnPropertyDescriptor(policies, String(index))
@@ -187,9 +189,21 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
       const policy: unknown = entry.value
       if (!object(policy) || !exact(policy, Object.hasOwn(policy, 'owner') ? ['featureId', 'path', 'placement', 'owner'] : ['featureId', 'path', 'placement'])
         || Object.values(Object.getOwnPropertyDescriptors(policy)).some(field => !Object.hasOwn(field, 'value') || !field.enumerable)
-        || !identifier(policy.featureId) || !seeds.has(policy.featureId) || used.has(JSON.stringify([policy.featureId, policy.path]))
-        || !['endCondition.target', 'secondDirection.endCondition.target'].includes(policy.path as string) || policy.placement !== 'world' && (policy.placement !== 'transform' || Object.hasOwn(policy, 'owner'))) {
-        throw new Error('Cada plano límite fijo requiere una política explícita y única de una operación semilla.')
+        || !identifier(policy.featureId) || used.has(JSON.stringify([policy.featureId, policy.path]))) {
+        throw Error('Cada política debe declarar una referencia propia y única.')
+      }
+      if (policy.path === 'support') {
+        supportCount++
+        if (supportCount > MAX_RECIPE_DEFINITIONS || dynamic || operation.variation.kind !== 'none'
+          || policy.placement !== 'transform' || Object.hasOwn(policy, 'owner')) {
+          throw Error('El soporte de croquis requiere transformación, cotas fijas y cuerpos seleccionados.')
+        }
+      } else {
+        limitCount++
+        if (limitCount > 32 || !seeds.has(policy.featureId) || !['endCondition.target', 'secondDirection.endCondition.target'].includes(policy.path as string)
+          || policy.placement !== 'world' && (policy.placement !== 'transform' || Object.hasOwn(policy, 'owner'))) {
+          throw Error('Cada plano límite requiere una política de una operación semilla.')
+        }
       }
       if (Object.hasOwn(policy, 'owner')) {
         const owner = policy.owner

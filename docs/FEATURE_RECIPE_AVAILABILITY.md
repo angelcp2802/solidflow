@@ -17,7 +17,8 @@ parameter, document grammar or native acceptance rule.
 | Pattern seed or imported solid/body source | No corresponding regeneration recipe; existing copy semantics remain separate | Same gate |
 | External world face limit | User selects a historical body for the scoped v1 face on either direction. The native history and current epoch establish the exact occurrence | Same face route for admitted cuts. Positive dynamic limits retain their separate gate |
 | Principal-rooted datum end limit | Explicit fixed or transformed placement on either active direction. The active rebuild verifies every ancestor and the oriented plane before applying offsets | Same route for admitted cuts |
-| Associated sketch support, face-rooted datum end limit or same-instance parent face | Existing correspondence/policy gates; no implicit reference remapping | Same limits |
+| Sketch on a principal-rooted datum | Selected bodies, solid section and fixed local dimensions. The editor explicitly assigns transform placement to the sketch and each earlier datum in its ancestry. Primitive profiles and fully defined entity profiles use the current reconstructed chart | Unavailable in dynamic scopes |
+| Face-based sketch support, world/mixed sketch support, face-rooted datum end limit or same-instance parent face | Existing correspondence/policy gates; no implicit reference remapping | Same limits |
 
 Selected principal-plane UpToSurface remains selectable so its existing fixed
 world-policy control can be supplied. A world face policy additionally stores the historical owner. Two coincident owners at the same producer remain distinct. An inactive second limit is ignored where
