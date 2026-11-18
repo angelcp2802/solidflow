@@ -136,23 +136,6 @@ function bodyMergeOptions(source: Record<string, unknown>, path: string): { merg
   return { merge, bodyOperation: operation }
 }
 
-function bodyReferencePath(feature: Feature, index: number, path: string): string {
-  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
-    const count = feature.featurePattern.bindings.length
-    return index < count ? `${path}.featurePattern.bindings[${index}].source` : `${path}.featurePattern.targets[${index - count}]`
-  }
-  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
-    return index < feature.source.bodies.length ? `${path}.source.bodies[${index}]` : `${path}.bodyPattern.target`
-  }
-  if (feature.type === 'combine') {
-    return feature.operation === 'subtract' ? `${path}.${index === 0 ? 'target' : `tools[${index - 1}]`}`
-      : `${path}.operands[${index}]`
-  }
-  if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return `${path}.${featureBodyReferencePaths(feature)[index]}`
-  if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') return `${path}.bodyOperation.target`
-  return `${path}.bodyScope${feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole' ? `[${index}]` : ''}`
-}
-
 function integer(value: unknown, path: string, minimum: number, maximum: number): number {
   const result = number(value, path, minimum, maximum)
   if (!Number.isInteger(result)) fail(path, 'se esperaba un número entero')
@@ -878,8 +861,9 @@ export function validateDocument(value: unknown): Document {
     featureCapturedBodyIds(parsed).forEach((bodyId, captureIndex) => {
       if (!createdBodies.has(bodyId)) fail(`${path}.featurePattern.capturedBodyIds[${captureIndex}]`, 'la identidad capturada debe tener un creador anterior')
     })
+    const referencePaths = bodyRefs.length ? featureBodyReferencePaths(parsed) : []
     bodyRefs.forEach((reference, referenceIndex) => {
-      const location = bodyReferencePath(parsed, referenceIndex, path)
+      const location = path + '.' + referencePaths[referenceIndex]
       const owner = seen.get(reference.sourceFeatureId)
       if (!owner) fail(`${location}.sourceFeatureId`, 'debe referenciar una operación anterior')
       if (!featureBodyOutputIncludes(owner, reference.bodyId, [...seen.values()])) {

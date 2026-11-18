@@ -11,6 +11,8 @@ import { CadEngine } from './kernel.engine';
 import { withNativeOwners } from './kernel.native-ownership';
 import * as recipeInstance from './kernel.recipe-instance';
 import * as recipeEvaluation from './kernel.feature-recipes';
+import * as faceHistory from './kernel.recipe-face-history';
+import { NativeBodyTransaction } from './kernel.bodies';
 import type { BodyReference, CadResult, Feature, RepetitionFeature, Vec3 } from './kernel.types';
 
 // Original analytical mm fixtures for explicitly fixed external XY=0 limits.
@@ -314,6 +316,36 @@ it('rebuilds from the external historical face of the exact saved owner and reje
     expect(stale.featureErrors[0].message).toMatch(/epoch/);
     expect(stale.bodies!.find(body => body.ref.bodyId === a.bodyId)!.ref).toEqual(a);
   } finally { replaceEpoch.mockRestore(); }
+  // Fail registration of each copied resource before and after the arena records it.
+  const captureFaces = faceHistory.captureRecipeOwnerFaces, originalSet = Map.prototype.set;
+  for (const resource of ['shape', 'lease'] as const) for (const registered of [false, true]) {
+    let pendingResource: object | undefined, injections = 0, bodyDeletes = 0, faceDeletes = 0;
+    const capture = vi.spyOn(faceHistory, 'captureRecipeOwnerFaces').mockImplementation((...args) => {
+      const result = captureFaces(...args);
+      const entry = NativeBodyTransaction.requireOutput(args[0], args[2]);
+      const face = faceHistory.readHistoricalRecipeFace(result.lease, args[1], limit, entry.lineage, result.shape, matches[0].ref);
+      const deleteShape = result.shape.delete.bind(result.shape), deleteFace = face.delete.bind(face);
+      result.shape.delete = () => { bodyDeletes++; deleteShape(); };
+      face.delete = () => { faceDeletes++; deleteFace(); };
+      pendingResource = result[resource];
+      return result;
+    });
+    const instrumentSet = vi.spyOn(Map.prototype, 'set').mockImplementation(function(this: Map<unknown, unknown>, key, value) {
+      if (pendingResource && key === pendingResource) {
+        pendingResource = undefined; injections++;
+        if (registered) originalSet.call(this, key, value);
+        throw Error('Original ownership registration test');
+      }
+      return originalSet.call(this, key, value);
+    });
+    try {
+      expect(() => engine.build(saved.features)).toThrow(/Historical face ownership registration failed/);
+    } finally { instrumentSet.mockRestore(); capture.mockRestore(); }
+    expect([injections, bodyDeletes, faceDeletes]).toEqual([1, 1, 1]);
+  }
+  healthy(engine, saved);
+  p.featurePattern.referencePolicies[0].owner = { ...limit, bodyId: 'absent-owner' };
+  expect(() => addFeature(seeded, p)).toThrow(/featurePattern\.referencePolicies\[0\]\.owner\.bodyId/);
   // Both bodies are valid outputs of the SAME operation, occupy the SAME space, and have identical cuts.
   p.featurePattern.referencePolicies[0].owner = { ...decoy };
   const forged = parseDocument(serializeDocument(addFeature(seeded, p)));

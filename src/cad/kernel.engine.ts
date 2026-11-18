@@ -1081,17 +1081,19 @@ export class CadEngine {
           // Transaction outputs are valid; preflight independently rechecks the
           // copied source before any recipe tool. Do not swallow a legacy raw
           // validator cleanup error as an ordinary capture error here.
+          let capture: ReturnType<typeof captureRecipeOwnerFaces> | undefined;
           try {
             const keys = wantedRecipeFaces.get(key);
-            if (keys?.size) {
-              const capture = captureRecipeOwnerFaces(transaction, recipeFaceEpoch, output.ref, keys);
-              recipeOwners.ownAll([capture.shape, capture.lease]);
-              record.shape = capture.shape; record.faceLease = capture.lease;
-            } else record.shape = recipeOwners.own(copyBodyShape(output.shape));
-          }
-          catch (error) {
+            if (keys?.size) capture = captureRecipeOwnerFaces(transaction, recipeFaceEpoch, output.ref, keys);
+            else record.shape = recipeOwners.own(copyBodyShape(output.shape));
+          } catch (error) {
             if (isNativeCleanupFailure(error) || recipeOwners.cleanupErrors().length) throw error;
             record.error = error; // Preserve the exact ordinary capture cause for its consumer.
+          }
+          if (capture) {
+            try { recipeOwners.ownAll([capture.shape, capture.lease]); }
+            catch (error) { throw new BodyStatePublicationError('Historical face ownership registration failed before state transfer.', { cause: error }); }
+            record.shape = capture.shape; record.faceLease = capture.lease;
           }
         }
         // Prepare the complete cache without publishing partial ownership. Its
