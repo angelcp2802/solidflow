@@ -1,3 +1,4 @@
+import { principalRecipeDatumChain } from '../model/recipeDatumChain';
 import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 import type { Feature, FeatureError, RepetitionFeature } from '../cad/kernel.types';
 
@@ -31,6 +32,10 @@ export function featurePatternBuildMessage(diagnostic: FeatureError, pattern: Re
   const end = limit.path === firstLimit ? seed.endCondition : second?.enabled ? second.endCondition : undefined;
   if (end?.kind !== 'upToSurface') return message;
   if (end.target.kind === 'face' && isBodyCatalogFaceKey(end.target.face.key) && !pattern.source.featureIds.includes(end.target.face.sourceFeatureId)) return `Para recalcular la dirección ${limit.direction}, selecciona el cuerpo histórico de la cara límite de ${seed.name}.`;
+  if (end.target.kind === 'plane') {
+    const planes = new Map(prefix.filter(item => item.type === 'plane').map(item => [item.id, item]));
+    if (principalRecipeDatumChain(end.target.planeId, id => planes.get(id))) return `Para recalcular la dirección ${limit.direction}, elige si el plano límite de ${seed.name} se mantiene fijo o se transforma con cada copia.`;
+  }
   if (end.target.kind !== 'principal') return message;
   const label = featurePatternWorldLimitLabel(seed.name, limit.path);
   return `Para recalcular la dirección ${limit.direction} hasta el plano ${end.target.plane}, activa «${label}» en «Planos límite».`;

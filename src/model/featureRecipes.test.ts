@@ -218,7 +218,7 @@ it('rejects a suppressed closure input even when the selected output tuple is un
   expect(codes(() => extractRecipeClosure(features, request))).toContain('SUPPRESSED_DEPENDENCY');
 });
 
-it('extracts an exact world up-to plane but keeps the unresolved end-condition capability visible', () => {
+it('requires an explicit policy and exact native plane for a principal-rooted datum', () => {
   const { features, request } = fixture();
   features.splice(2, 0, { id: 'limit', type: 'plane', name: 'Original world z6', support: { kind: 'principal', plane: 'XY' }, offset: 6, reversed: false, suppressed: false });
   const cut = features.find(feature => feature.id === 'cut');
@@ -229,7 +229,7 @@ it('extracts an exact world up-to plane but keeps the unresolved end-condition c
   request.referencePolicies.push({ featureId: 'cut', path: 'endCondition.target', placement: 'world' });
   const closure = extractRecipeClosure(features, request);
   expect(closure.nativeRequirements).toContainEqual({ kind: 'exact-plane', planeId: 'limit' });
-  expect(codes(() => requireInitialRecipeDeclaration(closure))).toContain('UP_TO_SURFACE_PENDING');
+  expect(() => requireInitialRecipeDeclaration(closure)).not.toThrow();
 });
 
 it('requires face-owner association and preserves the opaque key as a pending exact requirement', () => {

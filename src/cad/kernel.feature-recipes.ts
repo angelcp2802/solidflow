@@ -19,7 +19,7 @@ import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRec
 import { classifyAdditiveRecipeOwner } from './kernel.recipe-additive-applicability';
 import { RECIPE_EVALUATOR_REVISION, RECIPE_AUTO_CAPTURE_REVISION, recipeAutoScopeDigest, type RecipeAutoScopeIntent } from '../model/featureRecipeAutoScope';
 
-import { checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
+import { checkpointRecipeDatum, readRecipeDatum, type RecipeDatumCheckpoint, checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
   type SourceSketchSolveCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
 export { RECIPE_EVALUATOR_REVISION } from '../model/featureRecipeAutoScope';
@@ -85,6 +85,7 @@ interface EvaluationProof {
   scope: NativeRecipeScopeAttestation;
   recipeFaceEpoch?: object;
   faces: { owner: BodyReference; reference: FaceReference }[];
+  datums: Map<string, RecipeDatumCheckpoint>;
   sketchSolves?: { registry: SourceSketchSolveRegistry; checkpoint: SourceSketchSolveCheckpoint };
 }
 const evaluations = new WeakMap<OwnedRecipeEvaluation, EvaluationProof>();
@@ -268,8 +269,9 @@ function materialChanged(before: Shape3D, after: Shape3D, owners: NativeOwners):
   return changed;
 }
 
-function preflight(input: RecipeEvaluationInput, closure: RecipeClosure): { sources: NativeSnapshot[]; targets: NativeSnapshot[]; faces: EvaluationProof['faces'] } {
+function preflight(input: RecipeEvaluationInput, closure: RecipeClosure): { sources: NativeSnapshot[]; targets: NativeSnapshot[]; faces: EvaluationProof['faces']; datums: Map<string, RecipeDatumCheckpoint> } {
   const sources: NativeSnapshot[] = [], targets: NativeSnapshot[] = [], faces: EvaluationProof['faces'] = [];
+  const datums = new Map<string, RecipeDatumCheckpoint>();
   for (const requirement of closure.nativeRequirements) {
     if (requirement.kind === 'materialized-source' || requirement.kind === 'exact-face') {
       const source = input.historicalStates.get(exactStateKey(requirement.ref));
@@ -291,11 +293,14 @@ function preflight(input: RecipeEvaluationInput, closure: RecipeClosure): { sour
       const target = input.catalog.resolve(requirement.ref);
       validateSingle(target.shape);
       targets.push({ ref: frozenRef(target.ref), lineage: target.lineage, shape: target.shape });
-    } else throw new Error('This historical datum requires an exact recipe reference resolver.');
+    } else if (requirement.kind === 'exact-plane') {
+      if (!input.sourceSketchSolves) throw Error('El plano límite requiere una reconstrucción con el historial de planos activo.');
+      datums.set(requirement.planeId, checkpointRecipeDatum(input.sourceSketchSolves, input.features, requirement.planeId));
+    }
   }
   sources.sort((a, b) => compare(exactStateKey(a.ref), exactStateKey(b.ref)));
   targets.sort((a, b) => compare(a.ref.bodyId, b.ref.bodyId));
-  return { sources, targets, faces };
+  return { sources, targets, faces, datums };
 }
 
 function assertParent(application: RecipeOwnerApplication, targetBodyId: string, address: string,
@@ -330,6 +335,8 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
     const scope = attestNativeRecipeScope(closure.request.scope, closure.request.targetSnapshot, input.catalog);
     // All native requirements resolve before the first target clone or tool.
     const snapshots = preflight(input, closure);
+    const datumHistory = snapshots.datums.size && input.sourceSketchSolves
+      ? { datums: snapshots.datums, registry: input.sourceSketchSolves, features: input.features } : undefined;
     const faceHistory = snapshots.faces.length && input.recipeFaceEpoch
       ? { epoch: input.recipeFaceEpoch, states: input.historicalStates } : undefined;
     if (closure.request.scope.mode === 'auto') recipeAutoNativeApplicationCount(closure, input.catalog.entries().length);
@@ -374,7 +381,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             assertEventCurrent();
             const first = eventOwners.find(owner => owner.bodyId === ids[0])!;
             additiveTool = owners.own(buildRecipeInstanceTool({ closure, featureId: operation.featureId, address: transform.key,
-              targetBodyId: first.bodyId, workingTarget: first.shape, faceHistory, validateTool: validatePositiveClosedTool, assertWorkingCurrent: assertEventCurrent }).tool);
+              targetBodyId: first.bodyId, workingTarget: first.shape, faceHistory, datumHistory, validateTool: validatePositiveClosedTool, assertWorkingCurrent: assertEventCurrent }).tool);
             // Classify this event against ALL chronological working owners before
             // any union. A contact/contained owner still counts for bridge policy.
             const contacts: string[] = [];
@@ -406,7 +413,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             let changed = false;
             if ((!additiveAll || bodyId === additiveOwner) && !allCutEntirelyBehindRay(closure, operation, transform.key, before, entitySource, assertWorkingCurrent)) {
               const constructionInput = { closure, featureId: operation.featureId,
-                address: transform.key, targetBodyId: bodyId, workingTarget: before, assertWorkingCurrent, entitySource, faceHistory,
+                address: transform.key, targetBodyId: bodyId, workingTarget: before, assertWorkingCurrent, entitySource, faceHistory, datumHistory,
                 // Tools may contain several closed regions. Recipe/profile gates
                 // remain in the bridge; source/current/final owners still use validateSingle.
                 validateTool: validatePositiveClosedTool };
@@ -512,6 +519,10 @@ function assertRecipeEvaluationCurrent(evaluation: OwnedRecipeEvaluation, proof:
   for (const snapshot of proof.targets) {
     const actual = catalog.resolve(snapshot.ref);
     if (actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) throw new Error('A current recipe target changed after evaluation.');
+  }
+  for (const [id, datum] of proof.datums) {
+    if (!current.sourceSketchSolves) throw Error('El historial del plano ya no está disponible.');
+    readRecipeDatum(current.sourceSketchSolves, datum, current.features, id);
   }
   if (proof.faces.length && proof.recipeFaceEpoch !== current.recipeFaceEpoch) throw Error('The historical face reconstruction epoch changed.');
   for (const { owner, reference } of proof.faces) {

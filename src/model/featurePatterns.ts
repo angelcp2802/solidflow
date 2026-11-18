@@ -20,7 +20,7 @@ interface FeaturePatternRoutes {
 export interface FeaturePatternReferencePolicy {
   featureId: string
   path: 'endCondition.target' | 'secondDirection.endCondition.target'
-  placement: 'world'
+  placement: 'world' | 'transform'
   owner?: BodyReference
 }
 
@@ -188,7 +188,7 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
       if (!object(policy) || !exact(policy, Object.hasOwn(policy, 'owner') ? ['featureId', 'path', 'placement', 'owner'] : ['featureId', 'path', 'placement'])
         || Object.values(Object.getOwnPropertyDescriptors(policy)).some(field => !Object.hasOwn(field, 'value') || !field.enumerable)
         || !identifier(policy.featureId) || !seeds.has(policy.featureId) || used.has(JSON.stringify([policy.featureId, policy.path]))
-        || !['endCondition.target', 'secondDirection.endCondition.target'].includes(policy.path as string) || policy.placement !== 'world') {
+        || !['endCondition.target', 'secondDirection.endCondition.target'].includes(policy.path as string) || policy.placement !== 'world' && (policy.placement !== 'transform' || Object.hasOwn(policy, 'owner'))) {
         throw new Error('Cada plano límite fijo requiere una política explícita y única de una operación semilla.')
       }
       if (Object.hasOwn(policy, 'owner')) {

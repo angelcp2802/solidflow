@@ -1,5 +1,7 @@
+import type { Feature } from './kernel.types';
+import { readRecipeDatum, type RecipeDatumCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 import type { Shape3D } from 'replicad';
-import { exactStateKey, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, isInitialAdditiveAllRecipe, requireInitialRecipeDeclaration, type RecipeClosure, type RecipeTermination } from '../model/featureRecipes';
+import { transformedLimitPlane, exactStateKey, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, isInitialAdditiveAllRecipe, requireInitialRecipeDeclaration, type RecipeClosure, type RecipeTermination } from '../model/featureRecipes';
 import type { NativeRecipeSourceState } from './kernel.feature-recipes';
 import { readHistoricalRecipeFace } from './kernel.recipe-face-history';
 import { withNativeOwners } from './kernel.native-ownership';
@@ -20,6 +22,7 @@ export interface RecipeInstanceToolInput {
   readonly workingTarget: Shape3D;
   readonly validateTool: (tool: Shape3D) => void;
   readonly entitySource?: EntityRecipeSolveInput;
+  readonly datumHistory?: { datums: ReadonlyMap<string, RecipeDatumCheckpoint>; registry: SourceSketchSolveRegistry; features: readonly Feature[] };
   readonly faceHistory?: { epoch: object; states: ReadonlyMap<string, NativeRecipeSourceState> };
   /** Evaluator closure over the actual working owner/revision and source epoch. */
   readonly assertWorkingCurrent?: () => void;
@@ -33,14 +36,26 @@ export interface OwnedRecipeInstanceTool {
 export type RecipeInstanceUntilNextResolution = UntilNextCutResolution & { readonly operation: 'add' | 'subtract' };
 export type RecipeInstanceDirectionsResolution = DirectionToolResolution & { readonly operation: 'add' | 'subtract' };
 
-function nativeTermination(end: RecipeTermination, history: RecipeInstanceToolInput['faceHistory']): PrimitiveTermination {
+function nativeTermination(end: RecipeTermination, input: RecipeInstanceToolInput): PrimitiveTermination {
   if (end.kind === 'blind') return { kind: 'blind', symmetric: end.symmetric };
   if (end.kind === 'throughAll') return { kind: 'throughAll', bothDirections: end.bothDirections };
   if (end.kind === 'untilNext') return { kind: 'untilNext' };
-  if (end.target.kind === 'principal' && end.policy.placement === 'world') {
-    const frame = principalPlaneFrame(end.target.plane);
+  if (end.target.kind !== 'face' && end.policy.placement !== 'instance') {
+    let frame;
+    if (end.target.kind === 'principal') frame = principalPlaneFrame(end.target.plane);
+    else {
+      const history = input.datumHistory, proof = history?.datums.get(end.target.planeId);
+      if (!history || !proof) throw Error('El plano límite no pertenece al historial de la receta.');
+      frame = readRecipeDatum(history.registry, proof, history.features, end.target.planeId);
+    }
+    if (end.policy.placement === 'transform') {
+      const transform = input.closure.request.plan.transforms.find(item => item.key === input.address);
+      if (!transform) throw Error('La instancia del plano límite no está activa.');
+      frame = transformedLimitPlane(frame, transform);
+    }
     return { kind: 'upToSurface', limit: { frame: end.offset ? offsetLimitFrame(frame, end.offset) : frame } };
   }
+  const history = input.faceHistory;
   if (end.target.kind === 'face' && end.policy.placement === 'world' && end.policy.owner && history) {
     const owner = end.policy.owner, state = history.states.get(exactStateKey(owner));
     if (!state?.shape) throw Error('El cuerpo histórico de la cara límite no está disponible.');
@@ -88,8 +103,8 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
     if (!input.assertWorkingCurrent) throw Error('Additive ALL requires its evaluator current working-owner guard.');
     input.assertWorkingCurrent();
   }
-  const termination = nativeTermination(end, input.faceHistory);
-  const secondTermination = resolved.secondTermination ? nativeTermination(resolved.secondTermination, input.faceHistory) : undefined;
+  const termination = nativeTermination(end, input);
+  const secondTermination = resolved.secondTermination ? nativeTermination(resolved.secondTermination, input) : undefined;
   return { closure, resolved, operation, termination, secondTermination, sketch };
 }
 

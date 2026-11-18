@@ -220,3 +220,25 @@ it('requires an explicit historical owner and keeps the opposite principal limit
   expect(editor(false).props.value).toBe('');
   expect(feature.featurePattern).toMatchObject({ referencePolicies: [{ path: 'secondDirection.endCondition.target' }] });
 });
+
+it('keeps independent world and transform policies for two ends on an associated datum', () => {
+  const { features, seed } = twoTargets(), onChange = vi.fn();
+  const datum: Feature = { id: 'linked-datum', name: 'Original offset datum', type: 'plane', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, offset: 2, reversed: true };
+  features.unshift(datum);
+  seed.secondDirection!.endCondition = { kind: 'upToSurface', target: { kind: 'plane', planeId: datum.id } };
+  let feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true);
+  const root = () => FeaturePatternWorldLimits({ feature, features, loading: false, onChange });
+  const transformed = 'Transformar plano límite de ' + seed.name + ' · dirección 2';
+  field(root(), transformed).props.onChange?.({ target: { checked: true } });
+  feature = { ...feature, ...onChange.mock.lastCall![0] };
+  expect(field(root(), FIRST).props.checked).toBe(true);
+  expect(field(root(), SECOND).props.checked).toBe(false);
+  expect(field(root(), transformed).props.checked).toBe(true);
+  expect(feature.featurePattern).toMatchObject({ referencePolicies: [
+    { path: 'endCondition.target', placement: 'world' }, { path: 'secondDirection.endCondition.target', placement: 'transform' }] });
+  field(root(), SECOND).props.onChange?.({ target: { checked: true } });
+  feature = { ...feature, ...onChange.mock.lastCall![0] };
+  expect(field(root(), SECOND).props.checked).toBe(true);
+  expect(field(root(), transformed).props.checked).toBe(false);
+});

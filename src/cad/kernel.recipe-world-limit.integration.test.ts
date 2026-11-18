@@ -353,3 +353,27 @@ it('rebuilds from the external historical face of the exact saved owner and reje
   expect(invalid.featureErrors.map(error => error.id)).toEqual([p.id]);
   expect(invalid.bodies!.find(body => body.ref.bodyId === a.bodyId)!.ref).toEqual(a);
 }), 60_000);
+
+it.each(placements)('places an oriented nested datum for $kind after reading the actual source prefix', row => fixture(engine => {
+  const original = prefix(row);
+  const datumA: Feature = { id: 'datum-a', type: 'plane', name: 'Original reversed XY at 2', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 2 };
+  const datumB: Feature = { id: 'datum-b', type: 'plane', name: 'Original negative Z at 1', suppressed: false,
+    support: { kind: 'plane', planeId: datumA.id }, reversed: false, offset: 1 };
+  const seed = original.features.find(item => item.id === source.sourceFeatureId);
+  if (seed?.type !== 'cut') throw Error('Original cut missing');
+  const definition = updateFeature(document([datumA, datumB, ...original.features]), seed.id, { ...seed,
+    endCondition: { kind: 'upToSurface', target: { kind: 'plane', planeId: datumB.id }, offset: { construction: 'normal', signedDistanceMm: 1 } } });
+  for (const placement of ['world', 'transform'] as const) {
+    const patternFeature = pattern(row.kind, a.sourceFeatureId);
+    if (patternFeature.featurePattern?.mode !== 'regenerate') throw Error('Missing pattern');
+    patternFeature.featurePattern.referencePolicies[0].placement = placement;
+    const doc = parseDocument(serializeDocument(addFeature(definition, patternFeature)));
+    healthy(engine, doc);
+    // Datum B is at z=1, with -Z normal. Its one-mm normal offset puts the seed end at z=0.
+    // In world coordinates the cut length is 2, 2, or 10 mm. Transforming both end and start preserves 6 mm.
+    const depth = placement === 'world' ? row.depth : 6;
+    metrics(engine, output(), row.baseVolume - depth * Math.PI / 4, row.baseArea + (depth + .5) * Math.PI, row.min, row.max);
+    metrics(engine, source, 64 - 6 * Math.PI / 4, 136 + 6.5 * Math.PI, sourceMin, sourceMax);
+  }
+}));

@@ -1,3 +1,4 @@
+import { MAX_RECIPE_DEFINITIONS, principalRecipeDatumChain } from './recipeDatumChain';
 import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 /**
  * Declaration extraction for per-instance feature recipes; no native evaluator.
@@ -18,7 +19,7 @@ import { assertExtrusionDirectionContext, readSecondDirection } from '../cad/ext
 
 export const RECIPE_LIMITS = Object.freeze({
   sourceFeatures: 32, targets: 32, dynamicTargets: 256, bindings: 512, applications: 512,
-  closureDefinitions: 256, dependencyEdges: 2048, jsonNodes: 50_000, jsonDepth: 64,
+  closureDefinitions: MAX_RECIPE_DEFINITIONS, dependencyEdges: 2048, jsonNodes: 50_000, jsonDepth: 64,
   /** UTF-16 code units, aggregated across copied record field names and string values.
    * The final canonical fingerprint is independently bounded by the same cap. */
   documentPrefix: 100_000, jsonCharacters: 1_000_000,
@@ -459,6 +460,11 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     ...[...bindingSources.values()].map(source => ({ kind: 'materialized-source' as const, ref: source })),
     ...[...targets.values()].map(target => ({ kind: 'current-target' as const, ref: target })),
   ];
+  const supportedSurface = (target: PlaneSupport, policy: RecipeReferencePolicy): boolean => {
+    if (target.kind === 'face') return policy.placement === 'world';
+    if (policy.placement === 'instance') return false;
+    return target.kind === 'principal' || !!principalRecipeDatumChain(target.planeId, id => definitions.get(id)?.feature);
+  };
   const policyFor = (featureId: string, path: string, support: PlaneSupport): RecipeReferencePolicy => {
     supportShape(support, featureId, path);
     const key = locatorKey(featureId, path), policy = policies.get(key);
@@ -561,8 +567,8 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       if (end.kind === 'upToSurface') {
         const policy = policyFor(feature.id, 'endCondition.target', end.target);
         node.termination = { kind: 'upToSurface', target: end.target, policy, ...(end.offset ? { offset: end.offset } : {}) };
-        if (end.target.kind === 'plane' || policy.placement !== 'world') {
-          pending('UP_TO_SURFACE_PENDING', feature.id, 'endCondition', 'Only fixed principal planes and explicitly owned external world faces are resolved; datum and transformed/instance references remain required.');
+        if (!supportedSurface(end.target, policy)) {
+          pending('UP_TO_SURFACE_PENDING', feature.id, 'endCondition', 'This placement requires an exact associated support or a native instance role.');
         }
       } else if (end.kind === 'throughAll' || end.kind === 'untilNext') {
         if (end.kind === 'throughAll' && typeof end.bothDirections !== 'boolean') invalid('THROUGH_ALL_SENSE', feature.id, 'endCondition.bothDirections', 'Through-all must name one/both directions.');
@@ -585,8 +591,8 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       if (end.kind === 'upToSurface') {
         const policy = policyFor(feature.id, `${path}.target`, end.target);
         node.secondTermination = { kind: 'upToSurface', target: end.target, policy, ...(end.offset ? { offset: end.offset } : {}) };
-        if (end.target.kind === 'plane' || policy.placement !== 'world') {
-          pending('UP_TO_SURFACE_PENDING', feature.id, path, 'Only fixed principal planes and explicitly owned external world faces are resolved; datum and transformed/instance references remain required.');
+        if (!supportedSurface(end.target, policy)) {
+          pending('UP_TO_SURFACE_PENDING', feature.id, path, 'This placement requires an exact associated support or a native instance role.');
         }
       } else {
         const sourceBase = feature.type === 'cut' ? feature.bodyScope?.[0]
@@ -635,8 +641,11 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
   if (sketchValues) sketchValues.sort((a, b) => textOrder(a.address, b.address) || textOrder(a.constraintId, b.constraintId));
   const worldFaceHistory = operations.some(node => [node.termination, node.secondTermination].some(end =>
     end?.kind === 'upToSurface' && end.target.kind === 'face' && end.policy.placement === 'world'));
+  const placedPlane = operations.some(node => [node.termination, node.secondTermination].some(end =>
+    end?.kind === 'upToSurface' && (end.target.kind === 'plane' || end.policy.placement === 'transform')));
   const fingerprintInput = canonical({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements,
-    ...(worldFaceHistory ? { referenceEvaluatorRevision: 'world-owner-face-history-v1' } : {}) });
+    ...(worldFaceHistory ? { referenceEvaluatorRevision: 'world-owner-face-history-v1' } : {}),
+    ...(placedPlane ? { planeEvaluatorRevision: 'principal-datum-placement-v1' } : {}) });
   return freezeTree({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements,
     diagnostics, eligibility: diagnostics.length ? 'pending-capability' : 'initial-declaration-subset', fingerprintInput });
 }

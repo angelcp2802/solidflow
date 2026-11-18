@@ -1,3 +1,4 @@
+import { principalRecipeDatumChain } from './recipeDatumChain';
 import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
 import { isAllFeaturePattern } from './featurePatterns';
@@ -27,6 +28,7 @@ export function recipeSeedUnavailableReason(seed: Feature | undefined, features:
   const ends = [seed.endCondition, ...(seed.secondDirection?.enabled ? [seed.secondDirection.endCondition] : [])];
   for (const end of ends) {
     if (end?.kind !== 'upToSurface' || end.target.kind === 'principal') continue;
+    if (end.target.kind === 'plane' && principalRecipeDatumChain(end.target.planeId, id => features.get(id))) continue;
     if (end.target.kind === 'face' && isBodyCatalogFaceKey(end.target.face.key)) {
       const parent = features.get(end.target.face.sourceFeatureId);
       if (parent && !parent.suppressed) {

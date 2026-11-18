@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Feature, ReferencePlaneFeature, SketchFeature } from './kernel.types';
+import { advanceLineage } from './kernel.naming';
 import { offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
 import { sketchVisual } from './kernel.sketch-visual';
 import * as profiles from './kernel.profiles';
 import { SKETCH_SOLVER_TOLERANCE } from '../sketch/solver';
 import {
-  createSourceSketchSolveRegistry, resolveSourceSketchSupport, checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
+  checkpointRecipeDatum, readRecipeDatum, createSourceSketchSolveRegistry, resolveSourceSketchSupport, checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
   type SourceSketchSolveHandle, type SourceSketchSupportContext,
 } from './kernel.sketch-solves';
 
@@ -268,4 +269,22 @@ describe('real source sketch solve records', () => {
       expect(() => state.registry.assertCheckpoint(proof, original)).toThrow('support or result');
     } finally { state.registry.revoke(); }
   });
+});
+
+it('binds a datum checkpoint to the live registry and each historical occurrence', () => {
+  const plane: ReferencePlaneFeature = { id: 'fixed', type: 'plane', name: 'Original offset XY', offset: 5,
+    reversed: false, suppressed: false, support: { kind: 'principal', plane: 'XY' } };
+  const support = context(), source = [plane];
+  const occurrence = { frame: offsetPlaneFrame(principalPlaneFrame('XY'), 5, false),
+    lineage: advanceLineage(advanceLineage('', ['principal', 'XY']), ['fixed', 'plane', false]) };
+  support.planeFeatureIds.add('fixed'); support.planes.set('fixed', occurrence);
+  const { registry } = staged(source, support), other = staged(source, support).registry;
+  const proof = checkpointRecipeDatum(registry.reader, source, 'fixed');
+  const read = () => readRecipeDatum(registry.reader, proof, source, 'fixed');
+  expect(read().origin).toEqual([0, 0, 5]);
+  expect(() => readRecipeDatum(other.reader, proof, source, 'fixed')).toThrow();
+  support.planes.set('fixed', structuredClone(occurrence)); expect(read).toThrow();
+  support.planes.set('fixed', occurrence); expect(read().normal).toEqual([0, 0, 1]);
+  expect(() => readRecipeDatum(registry.reader, proof, [{ ...plane, offset: 6 }], 'fixed')).toThrow();
+  registry.revoke(); expect(read).toThrow();
 });
