@@ -164,3 +164,9 @@ fixed endpoint produces a 2 mm cut and the transformed endpoint a 6 mm cut.
 The desktop route selects each policy, validates both volumes, cancels, applies,
 undoes, redoes, saves and reopens. The native integration also exercises both
 policies under a half-turn about Y and a reflection about XY at z = 2 mm.
+
+Placement precedes offset construction. An oriented normal follows the placed
+datum. A translation is then applied with its original world XYZ components.
+The original oblique vector (0.25, −0.75, 2) mm yields a 5 mm cut after each
+half-turn and mirror in the native fixture. Applying the vector before placement
+would give 9 mm. Exact native material probes lie 0.5 mm on either side of each end.

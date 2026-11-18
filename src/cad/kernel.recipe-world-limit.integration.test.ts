@@ -377,3 +377,25 @@ it.each(placements)('places an oriented nested datum for $kind after reading the
     metrics(engine, source, 64 - 6 * Math.PI / 4, 136 + 6.5 * Math.PI, sourceMin, sourceMax);
   }
 }));
+
+it.each(placements.slice(1))('translates the placed datum in literal world XYZ after $kind', row => fixture(engine => {
+  const datum: Feature = { id: 'translation-limit', type: 'plane', name: 'Original reversed XY at 1', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 1 };
+  const original = prefix(row), seed = original.features.find(item => item.id === source.sourceFeatureId);
+  if (seed?.type !== 'cut') throw Error('Original cut missing');
+  const definition = updateFeature(document([datum, ...original.features]), seed.id, { ...seed,
+    endCondition: { kind: 'upToSurface', target: { kind: 'plane', planeId: datum.id },
+      offset: { construction: 'translation', translationWorldMm: [.25, -.75, 2] } } });
+  const p = pattern(row.kind, a.sourceFeatureId);
+  if (p.featurePattern?.mode !== 'regenerate') throw Error('Original recipe missing');
+  p.featurePattern.referencePolicies[0].placement = 'transform';
+  healthy(engine, parseDocument(serializeDocument(addFeature(definition, p))));
+  // Half-turn: start +2, placed surface -5, world translation to -3.
+  // Mirror: start +10, placed surface +3, world translation to +5.
+  // Transforming the +2 mm displacement together with its support would instead cut 9 mm.
+  metrics(engine, output(), row.baseVolume - 5 * Math.PI / 4, row.baseArea + 5.5 * Math.PI, row.min, row.max);
+  metrics(engine, source, 64 - 9 * Math.PI / 4, 136 + 9.5 * Math.PI, sourceMin, sourceMax);
+  const endZ = row.kind === 'mirror' ? 5 : -3;
+  probe(engine, output(), [0, 0, endZ + .5], false);
+  probe(engine, output(), [0, 0, endZ - .5], true);
+}));
