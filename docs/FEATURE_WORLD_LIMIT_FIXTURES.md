@@ -144,7 +144,7 @@ and full-suite failure are recorded in [VALIDATION.md](VALIDATION.md).
 
 ### Historical face with coincident owners
 
-`node scripts/desktop-pattern-world-face-limit.cjs` opens the original project-owned
+`npm run test:desktop:pattern-world-face-limit` opens the original project-owned
 `pattern-world-face-limit-original.json` fixture. It extends the two-box linear
 example above with two coincident boxes from (10, −2, −3) to (12, 2, 1) mm.
 A single cut makes a 1 mm recess of radius 0.25 mm in both. The saved reference
