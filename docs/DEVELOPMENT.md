@@ -1745,6 +1745,20 @@ Keep exact camera-image assertions, text-exclusion definitions, projected-anchor
 tolerances and deadlines unchanged. Runtime observations and the visual
 comparison boundary are recorded in [validation](VALIDATION.md).
 
+Origin-label availability and activation share the same current frame, viewport
+size, toolbar inset, presented catalog, unique key and binding checks. Publish
+the observed catalog with the label state even when its pixel coordinates do
+not change. Read viewport dimensions once per render and once per activation;
+keep held-gesture and parent document/role guards. A change after rendering
+still rejects stale activation and never substitutes a nearby reference.
+
+The configured origin-owner workflow waits for the armed role and matching
+published label/viewport dimensions, then activates once. It retains the exact
+local-XY declaration and unchanged recovery/history/file oracles. Failure
+diagnostics retain the last observed role and geometry without masking the
+primary error. This readiness change alone does not attribute or resolve a
+previous hosted failure; source, renderer and hosted outcomes remain separate.
+
 ## Shared header menu visibility — 2026-10-27
 
 `CommandHeader` owns only menu visibility and its disclosure/pin controls.

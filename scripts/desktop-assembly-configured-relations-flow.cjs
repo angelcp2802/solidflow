@@ -42,6 +42,10 @@ module.exports=function configuredRelationsWorkflow(c){
   const component='Componente de referencias de origen configuradas', planes='Mostrar planos de origen configurados';
   const role='Seleccionar Referencia 1 por origen en vista configurada', close='Cerrar edición de relación configurada';
   const viewport='[aria-label="Visor 3D del ensamblaje"]', scopePlane=JSON.stringify(['principal-plane',null,'XY']);
+  const originFailure=(reason,label,state)=>{
+   const failure=reason instanceof Error?reason:new Error(label);
+   failure.message+=' '+JSON.stringify(state);return failure;
+  };
   const togglePlanes=async()=>{
    const selector='input[aria-label="'+planes+'"]';await navigation.reveal(selector);
    await page(selector=>{const input=document.querySelector(selector);if(!input||input.disabled)throw Error('Expected the enabled plane checkbox');input.click();},selector);
@@ -72,16 +76,34 @@ module.exports=function configuredRelationsWorkflow(c){
    'New Right Compact relation must expose the current scope and enable origin picking without another owner choice: '+JSON.stringify({mode:right.mode,modeDisabled:right.modeDisabled,roleDisabled:right.roleDisabled,labels:right.labels}));
   await aria(role);
   const rightLabel='Plano XY · Ámbito right';
-  await waitFor('right-scope XY label available in the live origin picker',()=>page((viewport,key)=>
-   [...document.querySelectorAll(viewport+' button[data-origin-key]')].some(row=>row.dataset.originKey===key&&!row.disabled&&row.checkVisibility()),viewport,scopePlane));
+  let lastLabelState=null;
+  const labelState=()=>page((viewport,key,role)=>{
+   const host=document.querySelector(viewport), rows=[...document.querySelectorAll(viewport+' button[data-origin-key]')].filter(row=>row.dataset.originKey===key), row=rows[0];
+   return {count:rows.length,disabled:row?.disabled,visible:row?.checkVisibility(),title:row?.title,
+    pick:host?.getAttribute('data-reference-picking'),pressed:document.querySelector('[aria-label="'+role+'"]')?.getAttribute('aria-pressed'),
+    width:host?.clientWidth,height:host?.clientHeight,frameWidth:Number(row?.dataset.originFrameWidth),frameHeight:Number(row?.dataset.originFrameHeight)};
+  },viewport,scopePlane,role);
+  let publishedLabel;
+  try { publishedLabel=await waitFor('right-scope XY label available in the live origin picker',async()=>{
+   const state=lastLabelState=await labelState();
+   return state.count===1&&!state.disabled&&state.visible&&state.title===rightLabel&&state.pick==='origin'&&state.pressed==='true'
+    &&state.width>0&&state.height>0&&state.width===state.frameWidth&&state.height===state.frameHeight?state:false;
+  }); } catch(reason) { throw originFailure(reason,'Origin label readiness failed',lastLabelState); }
+  c.checks.push({configuredOriginLabelPublishedGeometry:publishedLabel});
   await page((viewport,key,title)=>{
+   const host=document.querySelector(viewport);
    const rows=[...document.querySelectorAll(viewport+' button[data-origin-key]')].filter(row=>row.dataset.originKey===key);
-   if(rows.length!==1||rows[0].disabled||rows[0].title!==title)throw Error('Expected one enabled XY viewport label of the current scope');rows[0].click();
+   if(rows.length!==1||rows[0].disabled||rows[0].title!==title||host?.getAttribute('data-reference-picking')!=='origin'
+    ||Number(rows[0].dataset.originFrameWidth)!==host.clientWidth||Number(rows[0].dataset.originFrameHeight)!==host.clientHeight)
+    throw Error('Expected one current enabled XY viewport label with matching published geometry');rows[0].click();
   },viewport,scopePlane,rightLabel);
-  const picked=await waitFor('right-scope origin reference published after label activation',async()=>{
-   const current=await snapshot();
+  let lastPicked=null,picked;
+  try { picked=await waitFor('right-scope origin reference published after label activation',async()=>{
+   const current=lastPicked=await snapshot();
    return current.pick===''&&typeof current.references[0]==='string'&&current.references[0].length>0?current:false;
-  });
+  }); } catch(reason) { const {scope,mode,component,pick,references}=lastPicked||{};let label=null;
+   try { label=await labelState(); } catch {}
+   throw originFailure(reason,'Origin reference publication failed',{scope,mode,component,pick,references,label}); }
   const reference=JSON.parse(picked.references[0]);
   check(picked.pick===''&&picked.references[1]===''&&canonical(reference)===canonical({kind:'principal-plane',component:null,plane:'XY'}),
    'The right-scope label assigns only the first role to exact local XY and disarms');

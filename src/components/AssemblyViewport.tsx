@@ -18,8 +18,9 @@ import type { AssemblyInterferenceReport } from '../model/assemblyInterference'
 import type { AssemblyDragFrame } from '../model/assemblyDrag'
 import { identityRigidPose, validateRigidPose, type RigidPose } from '../model/rigidPose'
 import { assemblyReferencePickMode, assemblyVertexKey, pickAssemblyVertex, createAssemblyVertexMarkers, disposeAssemblyVertexMarkers } from './assemblyVertexPicking'
-import { assemblyOriginDisplayBinding, assemblyOriginExtent, assemblyOriginLabels, assemblyOriginReferenceKey, createAssemblyOriginOverlay, pickAssemblyOrigin, type AssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
+import { assemblyOriginExtent, assemblyOriginLabels, assemblyOriginReferenceKey, createAssemblyOriginOverlay, pickAssemblyOrigin, type AssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
 import { assemblyOriginLabelLeader, layoutAssemblyOriginLabels, type AssemblyOriginLabelAnchor } from './assemblyOriginLabelLayout'
+import { AssemblyOriginLabelButton, originLabelEntries, type OriginLabelCurrent } from './AssemblyOriginLabelButton'
 import './assembly-origin-display.css'
 type AnalysisPair = AssemblyInterferenceReport['pairs'][number]
 
@@ -279,7 +280,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
   const navigationHistory = props.viewHistory ?? localViewHistory.current
   const host = useRef<HTMLDivElement>(null), input = useRef(props); input.current = props
   const [dragAxis, setDragAxis] = useState<string | null>(null)
-  const [originLabelState, setOriginLabelState] = useState(() => ({ layout: layoutAssemblyOriginLabels([], { width: 0, height: 0 }, { topInset: props.originLabelTopInset }), signature: '', width: 0, height: 0, topInset: props.originLabelTopInset ?? 0 }))
+  const [originLabelState, setOriginLabelState] = useState(() => ({ layout: layoutAssemblyOriginLabels([], { width: 0, height: 0 }, { topInset: props.originLabelTopInset }), signature: '', catalog: '', width: 0, height: 0, topInset: props.originLabelTopInset ?? 0 }))
   const originLabelFrame = useRef(''), originLabelPress = useRef<{
     key: string; signature: string; revision: number | undefined; pointerId: number; reference: NativeReferencePress | null; released: boolean
   } | null>(null)
@@ -378,7 +379,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       return controls
     })
     const fit = () => navigation.automatic(fitRaw)
-    let hovered: string | null = null, hoveredEdge: string | null = null, hoveredVertex: string | null = null, hoveredOrigin: string | null = null, originVisualSignature = '', labelSignature = '', displayedOriginCatalog = '', originPressCatalog = ''
+    let hovered: string | null = null, hoveredEdge: string | null = null, hoveredVertex: string | null = null, hoveredOrigin: string | null = null, originVisualSignature = '', labelSignature = '', labelCatalog = '', displayedOriginCatalog = '', originPressCatalog = ''
     const clearHover = () => { hovered = null; hoveredEdge = null; hoveredVertex = null; hoveredOrigin = null }
     const highlight = () => {
       const current = context.current; if (!current) return
@@ -423,7 +424,10 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       const topInset = input.current.originLabelTopInset ?? 0
       const labels = assemblyOriginLabels(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), { width, height }), signature = JSON.stringify([width, height, topInset, labels])
       originLabelFrame.current = signature
-      if (signature !== labelSignature) { labelSignature = signature; setOriginLabelState({ layout: layoutAssemblyOriginLabels(labels, { width, height }, { topInset }), signature, width, height, topInset }) }
+      if (signature !== labelSignature || displayedOriginCatalog !== labelCatalog) {
+        labelSignature = signature; labelCatalog = displayedOriginCatalog
+        setOriginLabelState({ layout: layoutAssemblyOriginLabels(labels, { width, height }, { topInset }), signature, catalog: displayedOriginCatalog, width, height, topInset })
+      }
     }
     const resize = new ResizeObserver(() => {
       cancelInteractionContext()
@@ -625,10 +629,18 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const current = context.current; if (!current || !props.view) return
     current.navigation.request(props.view)
   }, [props.view])
-  const originButton = (label: AssemblyOriginLabelAnchor, style?: CSSProperties) => <button key={label.key} type="button"
-      className={(props.selectedOrigins ?? []).some(ref => assemblyOriginReferenceKey(ref) === label.key) ? 'selected' : ''}
-      style={style} aria-label={`Seleccionar ${label.label}`} title={label.label} data-origin-key={label.key}
-      disabled={!!props.disabled || originLabelState.topInset !== (props.originLabelTopInset ?? 0) || !originLabelState.layout.usable || assemblyReferencePickMode(props) !== 'origin'}
+  // Read the viewport dimensions once per render; activation takes one fresh snapshot.
+  const currentOriginLabels = (value: AssemblyViewportProps): OriginLabelCurrent => ({
+    disabled: !!value.disabled, picking: assemblyReferencePickMode(value) === 'origin',
+    signature: originLabelFrame.current, catalog: originCatalog(value), presentedCatalog: originFrame.current,
+    width: host.current?.clientWidth, height: host.current?.clientHeight, topInset: value.originLabelTopInset ?? 0,
+    entries: originLabelEntries(value.originReferences ?? []),
+  })
+  const renderedOriginLabels = currentOriginLabels(props)
+  const labelFrame = { ...originLabelState, usable: originLabelState.layout.usable }
+  const originButton = (label: AssemblyOriginLabelAnchor, style?: CSSProperties) => <AssemblyOriginLabelButton key={label.key}
+      label={label} frame={labelFrame} current={renderedOriginLabels}
+      selected={(props.selectedOrigins ?? []).some(ref => assemblyOriginReferenceKey(ref) === label.key)} style={style}
       onPointerDown={event => {
         if (!event.isPrimary || event.button !== 0) return
         const value = input.current
@@ -647,17 +659,14 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
         if (press?.pointerId === event.pointerId && !press.released) cancelOriginLabelPress()
       }} onPointerCancel={event => {
         if (originLabelPress.current?.pointerId === event.pointerId) cancelOriginLabelPress()
-      }} onClick={event => {
+      }} activate={event => {
         const press = originLabelPress.current, value = input.current
         cancelOriginLabelPress()
-        if (originLabelState.topInset !== (value.originLabelTopInset ?? 0) || originLabelFrame.current !== originLabelState.signature
-          || host.current?.clientWidth !== originLabelState.width || host.current?.clientHeight !== originLabelState.height
-          || event.detail > 0 && (!press?.released || press.key !== label.key || press.signature !== originLabelState.signature
-            || !Object.is(press.revision, value.interactionRevision) || !referencePressMatches(press.reference, value))) return
-        const matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
-        if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value)
-          && matches.length === 1 && assemblyOriginDisplayBinding(matches[0]) === label.binding) value.onOrigin?.(structuredClone(matches[0].reference))
-      }}>{label.label}</button>
+        return { current: currentOriginLabels(value),
+          acceptGesture: () => !(event.detail > 0 && (!press?.released || press.key !== label.key || press.signature !== originLabelState.signature
+            || !Object.is(press.revision, value.interactionRevision) || !referencePressMatches(press.reference, value))),
+          select: entry => value.onOrigin?.(structuredClone(entry.reference)) }
+      }} />
   return <div className="assembly-viewport" ref={host} style={background ? { background } : undefined} tabIndex={props.onContextTarget ? 0 : undefined} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
     <div className="assembly-origin-labels" aria-label="Referencias de origen visibles">
       <svg className="assembly-origin-leaders" aria-hidden="true">{originLabelState.layout.labels.map(label =>
