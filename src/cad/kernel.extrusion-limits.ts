@@ -1,6 +1,7 @@
 import { cast, Face, getOC, measureShapeSurfaceProperties, type Shape3D } from 'replicad';
 import { withNativeOwners } from './kernel.native-ownership';
-import { offsetLimitFrame, planarFaceFrame } from './kernel.frames';
+import { offsetLimitFrame } from './kernel.frames';
+import { planarNativeFaceFrame } from './kernel.faces';
 import type { PlaneFrame, SurfaceOffset, Vec3 } from './kernel.types';
 
 const TOLERANCE = 1e-6;
@@ -139,8 +140,7 @@ export function upToSurfaceTool(target: { frame: PlaneFrame } | { face: Face }, 
     let face: Face;
     if ('frame' in target) face = owners.own(planeFace(offset ? offsetLimitFrame(target.frame, offset) : target.frame));
     else if (offset && target.face.geomType === 'PLANE') {
-      const point = owners.own(target.face.pointOnSurface(.5, .5)), normal = owners.own(target.face.normalAt());
-      const frame = planarFaceFrame(point.toTuple(), normal.toTuple());
+      const frame = planarNativeFaceFrame(target.face);
       face = owners.own(planeFace(offsetLimitFrame(frame, offset)));
     } else if (target.face.geomType === 'PLANE') {
       face = owners.own(withNativeOwners(construct => {

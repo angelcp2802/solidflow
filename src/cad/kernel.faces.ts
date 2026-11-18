@@ -21,7 +21,7 @@ function histogram(types: string[]): [string, number][] {
 }
 
 /** Preserve the SDK's two sampling maps without its GC-only native temporaries. */
-function ownedPlanarCatalogFrame(face: Face): PlaneFrame {
+export function planarNativeFaceFrame(face: Face): PlaneFrame {
   return withNativeOwners(owners => {
     const oc = getOC(), raw = face.wrapped;
     const normalBounds = oc.BRepTools.UVBounds(raw, 0, 0, 0, 0);
@@ -65,7 +65,7 @@ export function createFaceCatalog(shape: Shape3D, sourceFeatureId: string, linea
       const wires = ownedNativeTopology(face, 'wire'); faceOwners.ownAll(wires);
       let frame: PlaneFrame | null = null;
       if (faceTypes[index] === 'PLANE') {
-        frame = ownedPlanarCatalogFrame(face);
+        frame = planarNativeFaceFrame(face);
       }
       const boundary = edges.map((edge) => withNativeOwners(edgeOwners => {
         const edgeBox = edgeOwners.own(edge.boundingBox);
