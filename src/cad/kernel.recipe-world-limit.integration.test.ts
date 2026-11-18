@@ -10,6 +10,7 @@ import { bodyBoolean, NativeBodyCatalog, validateBodyShape } from './kernel.bodi
 import { CadEngine } from './kernel.engine';
 import { withNativeOwners } from './kernel.native-ownership';
 import * as recipeInstance from './kernel.recipe-instance';
+import * as recipeEvaluation from './kernel.feature-recipes';
 import type { BodyReference, CadResult, Feature, RepetitionFeature, Vec3 } from './kernel.types';
 
 // Original analytical mm fixtures for explicitly fixed external XY=0 limits.
@@ -273,4 +274,50 @@ it.each([
   metrics(engine, source, 64 - 7 * Math.PI / 4, 136 + 7.5 * Math.PI, sourceMin, sourceMax);
   probe(engine, output(), [x, 0, .5], !positiveRay);
   probe(engine, output(), [x, 0, 1.5], positiveRay);
+}), 60_000);
+
+it('rebuilds from the external historical face of the exact saved owner and rejects a coincident owner', () => fixture(engine => {
+  // Original limit body sits away from the cut at x=10..12. Its top at z=1 extends as an infinite plane.
+  const seedLimit = { bodyId: 'face-limit', sourceFeatureId: 'limit-create' };
+  const seedDecoy = { bodyId: 'face-decoy', sourceFeatureId: 'decoy-create' };
+  const limit = { ...seedLimit, sourceFeatureId: 'shared-cut' }, decoy = { ...seedDecoy, sourceFeatureId: 'shared-cut' };
+  const limitMin: Vec3 = [10, -2, -3], limitMax: Vec3 = [12, 2, 1];
+  const limitBodies: Feature[] = [...box(seedLimit.sourceFeatureId, limit.bodyId, limitMin, limitMax), ...box(seedDecoy.sourceFeatureId, decoy.bodyId, limitMin, limitMax),
+    { id: 'shared-profile', type: 'sketch', name: 'Shared recess', plane: 'XY', offset: 1, suppressed: false,
+      profile: { kind: 'circle', radius: .25, center: [11, 0] } },
+    { id: 'shared-cut', name: 'Shared cut', type: 'cut', bodyScope: [seedLimit, seedDecoy], sketchId: 'shared-profile', depth: -1, symmetric: false, suppressed: false }];
+  const observed = healthy(engine, document(limitBodies));
+  const matches = observed.bodies!.find(body => body.ref.bodyId === limit.bodyId)!.faces.filter(face => face.frame?.normal[2] === 1 && Math.abs(face.frame.origin[2] - 1) < 1e-6);
+  expect(matches).toHaveLength(1);
+  const before = document([...limitBodies, ...prefix().features]);
+  const seed = before.features.find(feature => feature.id === source.sourceFeatureId);
+  if (seed?.type !== 'cut') throw Error('Original cut missing.');
+  const seeded = updateFeature(before, seed.id, { ...seed, endCondition: { kind: 'upToSurface', target: { kind: 'face', face: matches[0].ref } } });
+  const p = pattern('linearPattern', a.sourceFeatureId);
+  if (p.featurePattern?.mode !== 'regenerate') throw Error('Original pattern missing.');
+  p.featurePattern.referencePolicies[0].owner = { ...limit };
+  const saved = parseDocument(serializeDocument(addFeature(seeded, p)));
+  const result = healthy(engine, saved);
+  expect(result.bodies).toHaveLength(4);
+  metrics(engine, output(), 64 - 3 * Math.PI / 4, 136 + 3.5 * Math.PI, placements[0].min, placements[0].max);
+  metrics(engine, source, 64 - 7 * Math.PI / 4, 136 + 7.5 * Math.PI, sourceMin, sourceMax);
+  metrics(engine, limit, 32 - Math.PI / 16, 64 + Math.PI / 2, limitMin, limitMax);
+  metrics(engine, decoy, 32 - Math.PI / 16, 64 + Math.PI / 2, limitMin, limitMax);
+  probe(engine, output(), [3, 0, .5], false);
+  probe(engine, output(), [3, 0, 1.5], true);
+  const stage = recipeEvaluation.stageFeatureRecipeEvaluation;
+  const replaceEpoch = vi.spyOn(recipeEvaluation, 'stageFeatureRecipeEvaluation').mockImplementation((evaluation, catalog, update, current) =>
+    stage(evaluation, catalog, update, { ...current, recipeFaceEpoch: {} }));
+  try {
+    const stale = engine.build(saved.features);
+    expect(stale.featureErrors.map(error => error.id)).toEqual([p.id]);
+    expect(stale.featureErrors[0].message).toMatch(/epoch/);
+    expect(stale.bodies!.find(body => body.ref.bodyId === a.bodyId)!.ref).toEqual(a);
+  } finally { replaceEpoch.mockRestore(); }
+  // Both bodies are valid outputs of the SAME operation, occupy the SAME space, and have identical cuts.
+  p.featurePattern.referencePolicies[0].owner = { ...decoy };
+  const forged = parseDocument(serializeDocument(addFeature(seeded, p)));
+  const invalid = engine.build(forged.features);
+  expect(invalid.featureErrors.map(error => error.id)).toEqual([p.id]);
+  expect(invalid.bodies!.find(body => body.ref.bodyId === a.bodyId)!.ref).toEqual(a);
 }), 60_000);

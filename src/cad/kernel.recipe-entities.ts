@@ -206,7 +206,7 @@ export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
       ? throughAllBossTool(target!, frame.origin, ray, termination.bothDirections, makePrism)
       : throughAllTool(target!, frame.origin, ray, termination.bothDirections, makePrism));
     else if (termination.kind === 'untilNext') tool = owners.own(untilNextTool(target!, frame.origin, ray, makePrism, input.operation === 'subtract'));
-    else if (termination.kind === 'upToSurface') tool = owners.own(upToSurfaceTool(termination.limit, frame.origin, ray, makePrism));
+    else if (termination.kind === 'upToSurface') tool = owners.own(upToSurfaceTool(termination.limit, frame.origin, ray, makePrism, termination.offset));
     else throw new Error('Unknown entity recipe termination.');
     input.validateTool(tool);
     input.assertWorkingCurrent();

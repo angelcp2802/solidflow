@@ -15,10 +15,11 @@ parameter, document grammar or native acceptance rule.
 | New-body extrusion or legacy operations without explicit owners | Unavailable recipe; normal operation/body-copy capabilities remain separate | Unavailable recipe |
 | Revolution/revolved cut, Hole, fillet/chamfer, shell/draft, sweep/loft, Combine | Existing `OPERATION_RECIPE_PENDING` gate; normal commands retain their capabilities | Same gate |
 | Pattern seed or imported solid/body source | No corresponding regeneration recipe; existing copy semantics remain separate | Same gate |
-| Associated sketch support, active face/datum end limit | Existing correspondence/policy gates; no implicit reference remapping | Same limits |
+| External world face limit | User selects a historical body for the scoped v1 face on either direction. The native history and current epoch establish the exact occurrence | Same face route for admitted cuts. Positive dynamic limits retain their separate gate |
+| Associated sketch support, datum end limit or same-instance parent face | Existing correspondence/policy gates; no implicit reference remapping | Same limits |
 
 Selected principal-plane UpToSurface remains selectable so its existing fixed
-world-policy control can be supplied. An inactive second limit is ignored where
+world-policy control can be supplied. A world face policy additionally stores the historical owner. Two coincident owners at the same producer remain distinct. An inactive second limit is ignored where
 the existing extractor ignores it. A current missing-policy error for an active
 principal-plane limit names the exact direction, plane and checkbox in
 **Planos límite**. The worker diagnostic and the verified-preview gate

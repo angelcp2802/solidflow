@@ -29,7 +29,7 @@ function render(feature: RepetitionFeature, features = history, loading = false)
 }
 const control = (html: string) => html.match(/<input[^>]*aria-label="Mantener plano límite fijo de Corte hasta XY"[^>]*>/)?.[0];
 const FIRST = 'Mantener plano límite fijo de Corte hasta XY', SECOND = 'Mantener plano límite fijo de dirección 2 de Corte hasta XY';
-interface ControlProps { children?: ReactNode; 'aria-label'?: string; checked?: boolean; disabled?: boolean; onChange?: (event: { target: { checked: boolean } }) => void }
+interface ControlProps { children?: ReactNode; 'aria-label'?: string; checked?: boolean; disabled?: boolean; value?: string; onChange?: (event: { target: { checked?: boolean; value?: string } }) => void }
 function field(root: ReactNode, label: string): ReactElement<ControlProps> {
   let found: ReactElement<ControlProps> | undefined;
   const visit = (node: ReactNode) => Children.forEach(node, child => {
@@ -197,4 +197,26 @@ describe('fixed-plane worker diagnostic presentation', () => {
     const diagnostic = { id: feature.id, message: raw(secondPath) };
     expect(featurePatternBuildMessage(diagnostic, feature, features)).toBe(diagnostic.message);
   });
+});
+
+it('requires an explicit historical owner and keeps the opposite principal limit when editing the face choice', () => {
+  const { features, seed } = twoTargets();
+  seed.endCondition = { kind: 'upToSurface', target: { kind: 'face', face: { sourceFeatureId: base.sourceFeatureId, key: 'face-v1|' + 'a'.repeat(64) } } };
+  let feature = withFeaturePatternWorldLimit(pattern(), seed.id, true, 'secondDirection.endCondition.target');
+  const onChange = vi.fn(), steps = [{ id: base.sourceFeatureId, name: 'Base', choices: [{ ref: base, name: 'Cuerpo original', unavailable: false }] }];
+  const label = 'Cuerpo de la cara límite de ' + seed.name + ' · dirección 1';
+  const editor = (loading: boolean) => field(FeaturePatternWorldLimits({ feature, features, loading, history: steps, onChange }), label);
+  const value = JSON.stringify([base.bodyId, base.sourceFeatureId]);
+  expect(editor(false).props.value).toBe('');
+  editor(true).props.onChange?.({ target: { value } }); expect(onChange).not.toHaveBeenCalled();
+  editor(false).props.onChange?.({ target: { value: 'not-an-option' } }); expect(onChange).not.toHaveBeenCalled();
+  editor(false).props.onChange?.({ target: { value } }); feature = { ...feature, ...onChange.mock.lastCall![0] };
+  expect(editor(false).props.value).toBe(value);
+  expect(feature.featurePattern).toMatchObject({ referencePolicies: [
+    { featureId: seed.id, placement: 'world', path: 'secondDirection.endCondition.target' },
+    { featureId: seed.id, placement: 'world', path: 'endCondition.target', owner: base },
+  ] });
+  editor(false).props.onChange?.({ target: { value: '' } }); feature = { ...feature, ...onChange.mock.lastCall![0] };
+  expect(editor(false).props.value).toBe('');
+  expect(feature.featurePattern).toMatchObject({ referencePolicies: [{ path: 'secondDirection.endCondition.target' }] });
 });

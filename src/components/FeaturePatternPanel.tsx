@@ -1,9 +1,10 @@
+import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 import { useMemo, useState } from 'react';
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types';
 import { sameBodyReference } from '../model/bodyCommands';
 import { withFeaturePatternBindings, withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
 import { isAutoFeaturePattern, isDynamicFeaturePattern, MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS, type AnyFeaturePatternBinding } from '../model/featurePatterns';
-import { bodyPatternHistoryChoices, type BodyPatternEditor } from './BodyPatternPanel';
+import { bodyPatternHistoryChoices, type BodyPatternEditor, type BodyPatternHistoryStep } from './BodyPatternPanel';
 import FeaturePatternDepthVariation from './FeaturePatternDepthVariation';
 import FeaturePatternSketchVariation from './FeaturePatternSketchVariation';
 import { featurePatternWorldLimitLabel } from './featurePatternBuildMessage';
@@ -11,8 +12,8 @@ import { featurePatternWorldLimitLabel } from './featurePatternBuildMessage';
 const key = (reference: BodyReference) => JSON.stringify([reference.bodyId, reference.sourceFeatureId]);
 const PAGE_SIZE = 64;
 
-export function FeaturePatternWorldLimits({ feature, features, loading, onChange }: {
-  feature: RepetitionFeature; features: readonly Feature[]; loading: boolean; onChange: (patch: Partial<Feature>) => void;
+export function FeaturePatternWorldLimits({ feature, features, loading, onChange, history }: {
+  feature: RepetitionFeature; features: readonly Feature[]; loading: boolean; history?: readonly BodyPatternHistoryStep[]; onChange: (patch: Partial<Feature>) => void;
 }) {
   const operation = feature.featurePattern;
   if (feature.source.mode !== 'features' || operation?.mode !== 'regenerate') return null;
@@ -21,18 +22,40 @@ export function FeaturePatternWorldLimits({ feature, features, loading, onChange
     if (!selected.has(source.id) || source.suppressed || source.type !== 'extrude' && source.type !== 'cut') return [];
     const ends = [{ end: source.endCondition, path: 'endCondition.target' as const },
       { end: source.secondDirection?.endCondition, path: 'secondDirection.endCondition.target' as const }];
-    return ends.flatMap(({ end, path }) => end?.kind === 'upToSurface' && end.target.kind === 'principal' ? [{ source, path }] : []);
+    return ends.flatMap(({ end, path }) => end?.kind === 'upToSurface' && (end.target.kind === 'principal' ||
+      end.target.kind === 'face' && isBodyCatalogFaceKey(end.target.face.key) && !selected.has(end.target.face.sourceFeatureId))
+      ? [{ source, path, target: end.target }] : []);
   });
-  const staleLimits = operation.referencePolicies.filter(policy => !worldLimits.some(limit => limit.source.id === policy.featureId && limit.path === policy.path));
+  const staleLimits = operation.referencePolicies.filter(policy => !worldLimits.some(limit => limit.source.id === policy.featureId && limit.path === policy.path &&
+    (limit.target.kind === 'principal' ? !policy.owner : policy.owner?.sourceFeatureId === limit.target.face.sourceFeatureId)));
   if (!worldLimits.length && !staleLimits.length) return null;
   return <div className="property-section">
     <h3>Planos límite</h3>
-    {worldLimits.map(({ source, path }) => {
+    {worldLimits.map(({ source, path, target }) => {
       const second = path === 'secondDirection.endCondition.target';
+      if (target.kind === 'face') {
+        const policy = operation.referencePolicies.find(item => item.featureId === source.id && item.path === path);
+        const choices = history?.find(step => step.id === target.face.sourceFeatureId)?.choices ?? [];
+        const label = `Cuerpo de la cara límite de ${source.name} · dirección ${second ? 2 : 1}`;
+        return <label key={JSON.stringify([source.id, path])} className="number-field">
+          <span>{label}</span>
+          <select aria-label={label} disabled={loading} value={policy?.owner ? key(policy.owner) : ''}
+            onChange={event => {
+              if (loading) return;
+              const value = event.target.value, choice = choices.find(item => !item.unavailable && key(item.ref) === value);
+              if (!value || choice) onChange({ featurePattern: withFeaturePatternWorldLimit(feature, source.id, !!choice, path, choice?.ref).featurePattern });
+            }}>
+            <option value="">Seleccionar cuerpo histórico</option>
+            {policy?.owner && !choices.some(item => sameBodyReference(item.ref, policy.owner!)) &&
+              <option value={key(policy.owner)} disabled>Cuerpo no disponible</option>}
+            {choices.map(item => <option key={key(item.ref)} value={key(item.ref)} disabled={item.unavailable}>{item.name}</option>)}
+          </select>
+        </label>;
+      }
       return <label key={JSON.stringify([source.id, path])} className="check-option">
         <input type="checkbox" disabled={loading}
           aria-label={second ? `Mantener plano límite fijo de dirección 2 de ${source.name}` : `Mantener plano límite fijo de ${source.name}`}
-          checked={operation.referencePolicies.some(policy => policy.featureId === source.id && policy.path === path)}
+          checked={operation.referencePolicies.some(policy => policy.featureId === source.id && policy.path === path && !policy.owner)}
           onChange={event => { if (!loading) onChange({ featurePattern: withFeaturePatternWorldLimit(feature, source.id, event.target.checked, path).featurePattern }); }} />
         <span>{featurePatternWorldLimitLabel(source.name, path)}</span>
       </label>;
@@ -43,7 +66,9 @@ export function FeaturePatternWorldLimits({ feature, features, loading, onChange
         onChange={() => { if (!loading) onChange({ featurePattern: withFeaturePatternWorldLimit(feature, policy.featureId, false, policy.path).featurePattern }); }} />
       <span>Plano límite no disponible{policy.path === 'secondDirection.endCondition.target' ? ' de dirección 2' : ''} · quitar</span>
     </label>)}
-    <p className="muted-small">Cada copia termina en el mismo plano principal. Su profundidad se recalcula desde la posición de la copia.</p>
+    {worldLimits.some(item => item.target.kind === 'face')
+      ? <p className="muted-small">Cada copia termina en la superficie histórica elegida, en su posición original.</p>
+      : <p className="muted-small">Cada copia termina en el mismo plano principal. Su profundidad se recalcula desde la posición de la copia.</p>}
   </div>;
 }
 
@@ -87,7 +112,7 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
   };
   const targetName = (reference: BodyReference) => editor.bodies.find(body => sameBodyReference(body.ref, reference))?.name ?? 'Destino no disponible';
   return <>
-    <FeaturePatternWorldLimits feature={feature} features={features} loading={editor.loading} onChange={onChange} />
+    <FeaturePatternWorldLimits feature={feature} features={features} history={history.steps} loading={editor.loading} onChange={onChange} />
     <FeaturePatternDepthVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />
     <FeaturePatternSketchVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />
     <div className="property-section">

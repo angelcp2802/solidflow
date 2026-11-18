@@ -1,5 +1,5 @@
 import { getOC, measureShapeVolumeProperties, type Shape3D } from 'replicad';
-import type { BodyReference, Feature, Vec3 } from './kernel.types';
+import type { BodyReference, FaceReference, Feature, Vec3 } from './kernel.types';
 import {
   exactStateKey, extractRecipeClosure, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration, recipeAutoNativeApplicationCount,
   type IntrinsicRecipeExtrusionPlacement, type RegenerationRequest, type RecipeClosure, type RecipeOperation, type RecipeOwnerApplication,
@@ -9,6 +9,7 @@ import {
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
 import { buildRecipeInstanceTool, resolveRecipeInstanceDirections, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
+import { readHistoricalRecipeFace, type NativeRecipeFaceLease } from './kernel.recipe-face-history';
 import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { validateEntityRecipeProfileForAbsence, type EntityRecipeSolveInput } from './kernel.recipe-entities';
@@ -33,6 +34,7 @@ export interface NativeRecipeSourceState {
   readonly ref: Readonly<BodyReference>;
   readonly lineage: string;
   readonly shape?: Shape3D;
+  readonly faceLease?: NativeRecipeFaceLease;
   /** Ordinary capture failure belongs to its consumer; release failures remain fatal. */
   readonly error?: unknown;
 }
@@ -42,6 +44,7 @@ export interface RecipeEvaluationInput {
   readonly request: RegenerationRequest;
   readonly catalog: NativeBodyCatalog;
   readonly historicalStates: ReadonlyMap<string, NativeRecipeSourceState>;
+  readonly recipeFaceEpoch?: object;
   /** Build-local real-solve capability; never saved or supplied in a worker DTO. */
   readonly sourceSketchSolves?: SourceSketchSolveRegistry;
 }
@@ -80,6 +83,8 @@ interface EvaluationProof {
   sources: NativeSnapshot[];
   targets: NativeSnapshot[];
   scope: NativeRecipeScopeAttestation;
+  recipeFaceEpoch?: object;
+  faces: { owner: BodyReference; reference: FaceReference }[];
   sketchSolves?: { registry: SourceSketchSolveRegistry; checkpoint: SourceSketchSolveCheckpoint };
 }
 const evaluations = new WeakMap<OwnedRecipeEvaluation, EvaluationProof>();
@@ -263,10 +268,10 @@ function materialChanged(before: Shape3D, after: Shape3D, owners: NativeOwners):
   return changed;
 }
 
-function preflight(input: RecipeEvaluationInput, closure: RecipeClosure): { sources: NativeSnapshot[]; targets: NativeSnapshot[] } {
-  const sources: NativeSnapshot[] = [], targets: NativeSnapshot[] = [];
+function preflight(input: RecipeEvaluationInput, closure: RecipeClosure): { sources: NativeSnapshot[]; targets: NativeSnapshot[]; faces: EvaluationProof['faces'] } {
+  const sources: NativeSnapshot[] = [], targets: NativeSnapshot[] = [], faces: EvaluationProof['faces'] = [];
   for (const requirement of closure.nativeRequirements) {
-    if (requirement.kind === 'materialized-source') {
+    if (requirement.kind === 'materialized-source' || requirement.kind === 'exact-face') {
       const source = input.historicalStates.get(exactStateKey(requirement.ref));
       if (!source || !sameRef(source.ref, requirement.ref)) throw new Error('The exact historical recipe source is unavailable.');
       if (source.error !== undefined) {
@@ -277,16 +282,20 @@ function preflight(input: RecipeEvaluationInput, closure: RecipeClosure): { sour
         throw new Error('A potential source declaration is not a materialized native recipe state.');
       }
       validateSingle(source.shape);
-      sources.push({ ref: frozenRef(source.ref), lineage: source.lineage, shape: source.shape });
+      if (requirement.kind === 'exact-face') {
+        readHistoricalRecipeFace(source.faceLease, input.recipeFaceEpoch, requirement.ref, source.lineage, source.shape, requirement.face);
+        faces.push({ owner: requirement.ref, reference: requirement.face });
+      }
+      if (!sources.some(item => sameRef(item.ref, source.ref))) sources.push({ ref: frozenRef(source.ref), lineage: source.lineage, shape: source.shape });
     } else if (requirement.kind === 'current-target') {
       const target = input.catalog.resolve(requirement.ref);
       validateSingle(target.shape);
       targets.push({ ref: frozenRef(target.ref), lineage: target.lineage, shape: target.shape });
-    } else throw new Error('Exact face/plane recipe evaluation remains pending; no native reference is guessed.');
+    } else throw new Error('This historical datum requires an exact recipe reference resolver.');
   }
   sources.sort((a, b) => compare(exactStateKey(a.ref), exactStateKey(b.ref)));
   targets.sort((a, b) => compare(a.ref.bodyId, b.ref.bodyId));
-  return { sources, targets };
+  return { sources, targets, faces };
 }
 
 function assertParent(application: RecipeOwnerApplication, targetBodyId: string, address: string,
@@ -321,6 +330,8 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
     const scope = attestNativeRecipeScope(closure.request.scope, closure.request.targetSnapshot, input.catalog);
     // All native requirements resolve before the first target clone or tool.
     const snapshots = preflight(input, closure);
+    const faceHistory = snapshots.faces.length && input.recipeFaceEpoch
+      ? { epoch: input.recipeFaceEpoch, states: input.historicalStates } : undefined;
     if (closure.request.scope.mode === 'auto') recipeAutoNativeApplicationCount(closure, input.catalog.entries().length);
     return withNativeOwners(owners => {
       const initial = new Map<string, Shape3D>(), current = new Map<string, Shape3D>(), revisions = new Map<string, number>();
@@ -363,7 +374,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             assertEventCurrent();
             const first = eventOwners.find(owner => owner.bodyId === ids[0])!;
             additiveTool = owners.own(buildRecipeInstanceTool({ closure, featureId: operation.featureId, address: transform.key,
-              targetBodyId: first.bodyId, workingTarget: first.shape, validateTool: validatePositiveClosedTool, assertWorkingCurrent: assertEventCurrent }).tool);
+              targetBodyId: first.bodyId, workingTarget: first.shape, faceHistory, validateTool: validatePositiveClosedTool, assertWorkingCurrent: assertEventCurrent }).tool);
             // Classify this event against ALL chronological working owners before
             // any union. A contact/contained owner still counts for bridge policy.
             const contacts: string[] = [];
@@ -395,7 +406,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             let changed = false;
             if ((!additiveAll || bodyId === additiveOwner) && !allCutEntirelyBehindRay(closure, operation, transform.key, before, entitySource, assertWorkingCurrent)) {
               const constructionInput = { closure, featureId: operation.featureId,
-                address: transform.key, targetBodyId: bodyId, workingTarget: before, assertWorkingCurrent, entitySource,
+                address: transform.key, targetBodyId: bodyId, workingTarget: before, assertWorkingCurrent, entitySource, faceHistory,
                 // Tools may contain several closed regions. Recipe/profile gates
                 // remain in the bridge; source/current/final owners still use validateSingle.
                 validateTool: validatePositiveClosedTool };
@@ -467,7 +478,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
         targets: Object.freeze(snapshots.targets.map(item => Object.freeze({ ref: item.ref, lineage: item.lineage }))),
         virtualOutputs: Object.freeze([...outputs.values()]) });
       const proof: EvaluationProof = { active: true, patternId: closure.request.patternId, fingerprintInput: closure.fingerprintInput,
-        catalog: input.catalog, history: input.historicalStates, ...snapshots, scope, sketchSolves };
+        catalog: input.catalog, history: input.historicalStates, ...snapshots, scope, sketchSolves, recipeFaceEpoch: faceHistory?.epoch };
       const result: OwnedRecipeEvaluation = Object.freeze({ replacements: Object.freeze(replacements), attestation,
         dispose() {
           if (!proof.active) return;
@@ -487,7 +498,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
 }
 
 function assertRecipeEvaluationCurrent(evaluation: OwnedRecipeEvaluation, proof: EvaluationProof, catalog: NativeBodyCatalog,
-  patternId: string, current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves'>): void {
+  patternId: string, current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves' | 'recipeFaceEpoch'>): void {
   const fresh = requireInitialRecipeDeclaration(extractRecipeClosure(current.features, current.request));
   if (fresh.fingerprintInput !== proof.fingerprintInput || evaluation.attestation.evaluatorRevision !== RECIPE_EVALUATOR_REVISION) {
     throw new Error('The recipe document or declaration changed after native evaluation.');
@@ -501,6 +512,12 @@ function assertRecipeEvaluationCurrent(evaluation: OwnedRecipeEvaluation, proof:
   for (const snapshot of proof.targets) {
     const actual = catalog.resolve(snapshot.ref);
     if (actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) throw new Error('A current recipe target changed after evaluation.');
+  }
+  if (proof.faces.length && proof.recipeFaceEpoch !== current.recipeFaceEpoch) throw Error('The historical face reconstruction epoch changed.');
+  for (const { owner, reference } of proof.faces) {
+    const state = proof.history.get(exactStateKey(owner));
+    if (!state?.shape) throw Error('The historical face owner has been retired.');
+    readHistoricalRecipeFace(state.faceLease, current.recipeFaceEpoch, owner, state.lineage, state.shape, reference);
   }
   for (const snapshot of proof.sources) {
     const actual = proof.history.get(exactStateKey(snapshot.ref));
@@ -524,7 +541,7 @@ export function recipeEvaluationEventAffectedBodyIds(evaluation: OwnedRecipeEval
 
 /** Read a genuine current ALL ledger before staging; the returned intent is not authority. */
 export function createNativeRecipeAutoScopeIntent(evaluation: OwnedRecipeEvaluation, catalog: NativeBodyCatalog,
-  current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves'>): RecipeAutoScopeIntent {
+  current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves' | 'recipeFaceEpoch'>): RecipeAutoScopeIntent {
   const proof = evaluations.get(evaluation);
   if (!proof?.active || proof.scope.intent.mode !== 'all') throw Error('AUTO discovery needs a genuine active ALL native evaluation.');
   assertRecipeEvaluationCurrent(evaluation, proof, catalog, current.request.patternId, current);
@@ -543,7 +560,7 @@ export function createNativeRecipeAutoScopeIntent(evaluation: OwnedRecipeEvaluat
  * the engine's existing staged-cache/adopt boundary; this function never commits.
  */
 export function stageFeatureRecipeEvaluation(evaluation: OwnedRecipeEvaluation, catalog: NativeBodyCatalog,
-  update: NativeBodyStateUpdate, current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves'>): NativeBodyTransaction {
+  update: NativeBodyStateUpdate, current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves' | 'recipeFaceEpoch'>): NativeBodyTransaction {
   const proof = evaluations.get(evaluation);
   if (!proof || !proof.active) throw new Error('Recipe evaluation is forged, already staged or disposed.');
   let transaction: NativeBodyTransaction | undefined, primary: { error: unknown } | undefined;

@@ -1,5 +1,7 @@
 import type { Shape3D } from 'replicad';
-import { fixedProfileInstanceInput, intrinsicProfileInstancePlacement, isInitialAdditiveAllRecipe, requireInitialRecipeDeclaration, type RecipeClosure, type RecipeTermination } from '../model/featureRecipes';
+import { exactStateKey, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, isInitialAdditiveAllRecipe, requireInitialRecipeDeclaration, type RecipeClosure, type RecipeTermination } from '../model/featureRecipes';
+import type { NativeRecipeSourceState } from './kernel.feature-recipes';
+import { readHistoricalRecipeFace } from './kernel.recipe-face-history';
 import { withNativeOwners } from './kernel.native-ownership';
 import { buildExplicitFramePrimitive, resolveExplicitFrameDirections, resolveExplicitFrameUntilNext, type PrimitiveTermination } from './kernel.recipe-primitives';
 import { offsetLimitFrame, principalPlaneFrame } from './kernel.frames';
@@ -18,6 +20,7 @@ export interface RecipeInstanceToolInput {
   readonly workingTarget: Shape3D;
   readonly validateTool: (tool: Shape3D) => void;
   readonly entitySource?: EntityRecipeSolveInput;
+  readonly faceHistory?: { epoch: object; states: ReadonlyMap<string, NativeRecipeSourceState> };
   /** Evaluator closure over the actual working owner/revision and source epoch. */
   readonly assertWorkingCurrent?: () => void;
 }
@@ -30,13 +33,19 @@ export interface OwnedRecipeInstanceTool {
 export type RecipeInstanceUntilNextResolution = UntilNextCutResolution & { readonly operation: 'add' | 'subtract' };
 export type RecipeInstanceDirectionsResolution = DirectionToolResolution & { readonly operation: 'add' | 'subtract' };
 
-function nativeTermination(end: RecipeTermination): PrimitiveTermination {
+function nativeTermination(end: RecipeTermination, history: RecipeInstanceToolInput['faceHistory']): PrimitiveTermination {
   if (end.kind === 'blind') return { kind: 'blind', symmetric: end.symmetric };
   if (end.kind === 'throughAll') return { kind: 'throughAll', bothDirections: end.bothDirections };
   if (end.kind === 'untilNext') return { kind: 'untilNext' };
   if (end.target.kind === 'principal' && end.policy.placement === 'world') {
     const frame = principalPlaneFrame(end.target.plane);
     return { kind: 'upToSurface', limit: { frame: end.offset ? offsetLimitFrame(frame, end.offset) : frame } };
+  }
+  if (end.target.kind === 'face' && end.policy.placement === 'world' && end.policy.owner && history) {
+    const owner = end.policy.owner, state = history.states.get(exactStateKey(owner));
+    if (!state?.shape) throw Error('El cuerpo histórico de la cara límite no está disponible.');
+    const face = readHistoricalRecipeFace(state.faceLease, history.epoch, owner, state.lineage, state.shape, end.target.face);
+    return { kind: 'upToSurface', limit: { face }, ...(end.offset ? { offset: end.offset } : {}) };
   }
   throw Error('La referencia exacta de un límite de instancia sigue pendiente de resolución nativa.');
 }
@@ -66,10 +75,6 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
   if (!input.workingTarget) throw new Error('The recipe instance needs its current native working owner.');
   const resolved = intrinsicProfileInstancePlacement(closure, input.featureId, input.address);
   const end = resolved.termination;
-  if (end.kind !== 'blind' && end.kind !== 'throughAll' && end.kind !== 'untilNext'
-      && !(end.kind === 'upToSurface' && end.target.kind === 'principal' && end.policy.placement === 'world')) {
-    throw new Error('This native recipe bridge does not enable pending end-condition declarations.');
-  }
   const definition = closure.definitions.find(item => item.feature.id === input.featureId)?.feature;
   let operation: 'add' | 'subtract';
   if (definition?.type === 'cut' && node.type === 'cut') operation = 'subtract';
@@ -83,8 +88,8 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
     if (!input.assertWorkingCurrent) throw Error('Additive ALL requires its evaluator current working-owner guard.');
     input.assertWorkingCurrent();
   }
-  const termination = nativeTermination(end);
-  const secondTermination = resolved.secondTermination ? nativeTermination(resolved.secondTermination) : undefined;
+  const termination = nativeTermination(end, input.faceHistory);
+  const secondTermination = resolved.secondTermination ? nativeTermination(resolved.secondTermination, input.faceHistory) : undefined;
   return { closure, resolved, operation, termination, secondTermination, sketch };
 }
 

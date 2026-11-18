@@ -1,5 +1,5 @@
 import type { BodyReference, Feature } from '../cad/kernel.types'
-import { isAllFeaturePattern, isAutoFeaturePattern, isDynamicFeaturePattern } from './featurePatterns'
+import { isAllFeaturePattern, isAutoFeaturePattern, isDynamicFeaturePattern, type FeaturePatternOperation } from './featurePatterns'
 
 /** Limit reads are separate from output owners, including retained inactive data. */
 function extrusionLimitBodyReads(feature: Extract<Feature, { type: 'extrude' }>, currentOnly = false): { reference: BodyReference; path: string }[] {
@@ -15,14 +15,21 @@ function extrusionLimitBodyReads(feature: Extract<Feature, { type: 'extrude' }>,
   return reads
 }
 
+function patternBodyReads(operation: FeaturePatternOperation): { reference: BodyReference; path: string }[] {
+  const bindings = operation.bindings.map((binding, i) => ({ reference: binding.source, path: `featurePattern.bindings[${i}].source` }))
+  const targets = isDynamicFeaturePattern(operation) ? [] : operation.targets.map((reference, i) => ({ reference, path: `featurePattern.targets[${i}]` }))
+  const owners = operation.mode === 'regenerate' ? operation.referencePolicies.flatMap((policy, i) => policy.owner
+    ? [{ reference: policy.owner, path: `featurePattern.referencePolicies[${i}].owner` }] : []) : []
+  return [...bindings, ...targets, ...owners]
+}
+
 /** Detached references in saved operand/scope order, without native resolution. */
 export function featureBodyReferences(feature: Feature): BodyReference[] {
   let references: readonly BodyReference[] = []
   if (feature.type === 'combine') {
     references = feature.operation === 'subtract' ? [feature.target, ...feature.tools] : feature.operands
   } else if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
-    references = [...feature.featurePattern.bindings.map(binding => binding.source),
-      ...(isDynamicFeaturePattern(feature.featurePattern) ? [] : feature.featurePattern.targets)]
+    references = patternBodyReads(feature.featurePattern).map(item => item.reference)
   } else if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
     references = [...feature.source.bodies, ...(feature.bodyPattern?.mode === 'merge' ? [feature.bodyPattern.target] : [])]
   } else if ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation?.mode === 'merge') {
@@ -40,11 +47,10 @@ export function featureBodyReferences(feature: Feature): BodyReference[] {
 /** Relative schema paths aligned with the detached declared reference inventory. */
 export function featureBodyReferencePaths(feature: Feature): string[] {
   if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return extrusionLimitBodyReads(feature).map(read => read.path)
+  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
+    return patternBodyReads(feature.featurePattern).map(item => item.path)
+  }
   return featureBodyReferences(feature).map((_, index) => {
-    if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
-      const count = feature.featurePattern.bindings.length
-      return index < count ? `featurePattern.bindings[${index}].source` : `featurePattern.targets[${index - count}]`
-    }
     if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
       return index < feature.source.bodies.length ? `source.bodies[${index}]` : 'bodyPattern.target'
     }

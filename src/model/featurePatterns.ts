@@ -16,11 +16,12 @@ interface FeaturePatternRoutes {
   bindings: FeaturePatternBinding[]
 }
 
-/** Explicit intent for an external principal-plane end reference. */
+/** External world limit. A face additionally names its exact historical body state. */
 export interface FeaturePatternReferencePolicy {
   featureId: string
   path: 'endCondition.target' | 'secondDirection.endCondition.target'
   placement: 'world'
+  owner?: BodyReference
 }
 
 /** Saved geometry copying and regeneration have distinct, explicit contracts. */
@@ -184,11 +185,18 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
       const entry = Object.getOwnPropertyDescriptor(policies, String(index))
       if (!entry || !Object.hasOwn(entry, 'value') || !entry.enumerable) throw new Error('Las políticas de límites deben contener datos propios enumerables.')
       const policy: unknown = entry.value
-      if (!object(policy) || !exact(policy, ['featureId', 'path', 'placement'])
+      if (!object(policy) || !exact(policy, Object.hasOwn(policy, 'owner') ? ['featureId', 'path', 'placement', 'owner'] : ['featureId', 'path', 'placement'])
         || Object.values(Object.getOwnPropertyDescriptors(policy)).some(field => !Object.hasOwn(field, 'value') || !field.enumerable)
         || !identifier(policy.featureId) || !seeds.has(policy.featureId) || used.has(JSON.stringify([policy.featureId, policy.path]))
         || !['endCondition.target', 'secondDirection.endCondition.target'].includes(policy.path as string) || policy.placement !== 'world') {
         throw new Error('Cada plano límite fijo requiere una política explícita y única de una operación semilla.')
+      }
+      if (Object.hasOwn(policy, 'owner')) {
+        const owner = policy.owner
+        if (!object(owner) || !exact(owner, ['bodyId', 'sourceFeatureId'])
+          || !identifier(ownData(owner, 'bodyId')?.value) || !identifier(ownData(owner, 'sourceFeatureId')?.value)) {
+          throw Error('La cara límite requiere un estado de cuerpo explícito.')
+        }
       }
       used.add(JSON.stringify([policy.featureId, policy.path]))
     }

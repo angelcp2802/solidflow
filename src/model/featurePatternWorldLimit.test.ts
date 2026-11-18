@@ -62,7 +62,7 @@ describe('saved external principal-plane recipe intent', () => {
     { kind: 'unsupported path', policies: [{ featureId: current.sourceFeatureId, path: 'support', placement: 'world' }] },
     { kind: 'unsupported placement', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'transform' }] },
     { kind: 'unselected source', policies: [{ featureId: 'not-a-selected-seed', path: 'endCondition.target', placement: 'world' }] },
-    { kind: 'unknown field', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world', owner: baseRef }] },
+    { kind: 'unknown field', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world', body: baseRef }] },
     { kind: 'duplicate source', policies: Array.from({ length: 2 }, () => ({ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world' })) },
   ])('rejects $kind raw policies', ({ policies }) => {
     const feature = pattern()
@@ -137,4 +137,11 @@ describe('saved external principal-plane recipe intent', () => {
     const edited = withFeaturePatternWorldLimit(feature, current.sourceFeatureId, false)
     expect(applyBodyCommand(prepared.plan, { ...input, feature: edited }, { features: prepared.plan.previewFeatures, healthy: true }).accepted).toBe(false)
   })
+})
+
+it('rejects a historical face owner on a seed whose target is a principal plane', () => {
+  const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true)
+  if (feature.featurePattern?.mode !== 'regenerate') throw Error('Missing original pattern.')
+  feature.featurePattern.referencePolicies[0].owner = { ...baseRef }
+  expect(() => extractRecipeClosure(prefix, request(feature))).toThrow()
 })

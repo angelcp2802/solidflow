@@ -116,10 +116,18 @@ distinguishes complete tools, separated forward misses, contact and incomplete
 limits, including the selected/ALL rules. No additional reference-policy field
 or document version is introduced for this termination.
 
-Other up-to-surface reference policies, associative supports and
-face correspondence retain explicit pending diagnostics. A principal-plane
-world policy resolves the intrinsic document plane, never an inferred datum,
-face or same-instance parent. An optional saved surface offset carries either
+A world limit can reference a principal plane or a face of an explicitly
+identified historical body. For a face, each saved policy includes
+`owner: { bodyId, sourceFeatureId }` and the extrusion side's locator. The
+normal property panel asks for the historical owner. Existing principal-plane
+declarations retain their original form. The evaluator resolves the scoped
+v1 face locator within that owner's catalog, checks native occurrence and
+orientation, and uses the copy builder's modification history to identify the
+oriented occurrence in the detached historical body. A missing, ambiguous,
+forged or retired face fails. The face lease and owner are build-local.
+A world limit stays at the historical location through pattern placements.
+Transformed face limits, same-instance parent face roles, associative sketch
+supports and datum limits still require their own correspondence evidence. An optional saved surface offset carries either
 a signed distance on the oriented support or a translation in document axes.
 Both extrusion directions retain the declaration. The world-principal recipe
 applies the offset to its own limit before native termination. A valid

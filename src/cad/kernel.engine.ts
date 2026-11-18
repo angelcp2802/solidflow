@@ -62,6 +62,7 @@ import { createVertexCatalog, pickableVerticesFromCatalog, resolveVertexReferenc
 import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, createNativeRecipeAutoScopeIntent, type NativeRecipeSourceState } from './kernel.feature-recipes';
 import type { RecipeAutoScopeIntent } from '../model/featureRecipeAutoScope';
 import type { RegenerationRequest } from '../model/featureRecipes';
+import { captureRecipeOwnerFaces, type NativeRecipeFaceLease } from './kernel.recipe-face-history';
 import { createSourceSketchSolveRegistry, resolveSourceSketchSupport } from './kernel.sketch-solves';
 import { resolveNativeRecipeScope } from './kernel.recipe-scopes';
 import { holePositionStructure, holeSolid } from './kernel.holes';
@@ -955,7 +956,12 @@ export class CadEngine {
     let historicalOwnedDeltas = new Map<string, OwnedFeatureGeometry>();
     let historicalRecipeStates = new Map<string, NativeRecipeSourceState>();
     const wantedRecipeStates = new Map<string, BodyReference>();
+    const wantedRecipeFaces = new Map<string, Set<string>>();
+    const recipeFaceEpoch = Object.freeze({});
+    const sourceDefinitions = new Map(features.map(feature => [feature.id, feature]));
+    let requestedFaceCount = 0;
     const recipeSourceBudgetErrors = new Set<Feature>();
+    const recipeFaceBudgetErrors = new Set<Feature>();
     const wantedOwnedContributions = new Map<string, BodyReference>();
     const ownedContributionBudgetErrors = new Set<Feature>();
     for (const repetition of validRepetitions) {
@@ -970,10 +976,40 @@ export class CadEngine {
     for (const repetition of validRepetitions) {
       if (repetition.featurePattern?.mode !== 'regenerate') continue;
       const refs = featurePatternSourceReferences(repetition);
-      const additions = refs.filter(ref => !wantedRecipeStates.has(featureContributionKey(ref)));
-      if (wantedRecipeStates.size + additions.length > MAX_FEATURE_PATTERN_CONTRIBUTIONS) {
+      const addedFaces = new Map<string, Set<string>>();
+      for (const policy of repetition.featurePattern.referencePolicies) {
+        if (!policy.owner) continue;
+        const source = sourceDefinitions.get(policy.featureId);
+        if (source?.type !== 'extrude' && source?.type !== 'cut') continue;
+        let end: ExtrudeFeature['endCondition'];
+        try {
+          if (policy.path === 'endCondition.target') {
+            const field = Object.getOwnPropertyDescriptor(source, 'endCondition');
+            if (field?.enumerable && 'value' in field) end = validateExtrusionEndCondition(field.value);
+          } else {
+            const second = readSecondDirection(source);
+            if (second?.enabled) end = second.endCondition;
+          }
+        } catch { continue; } // Source declaration validation reports its own error at its normal history step.
+        if (end?.kind !== 'upToSurface' || end.target.kind !== 'face' || end.target.face.sourceFeatureId !== policy.owner.sourceFeatureId) continue;
+        const key = featureContributionKey(policy.owner), faceKey = end.target.face.key;
+        refs.push(policy.owner);
+        if (!wantedRecipeFaces.get(key)?.has(faceKey)) {
+          const extra = addedFaces.get(key) ?? new Set<string>();
+          extra.add(faceKey); addedFaces.set(key, extra);
+        }
+      }
+      const additions = new Set(refs.map(featureContributionKey).filter(key => !wantedRecipeStates.has(key)));
+      const faceCount = [...addedFaces.values()].reduce((sum, keys) => sum + keys.size, 0);
+      if (wantedRecipeStates.size + additions.size > MAX_FEATURE_PATTERN_CONTRIBUTIONS) {
         recipeSourceBudgetErrors.add(repetition); continue;
       }
+      if (requestedFaceCount + faceCount > MAX_FEATURE_PATTERN_CONTRIBUTIONS ||
+        [...addedFaces].some(([key, extra]) => (wantedRecipeFaces.get(key)?.size ?? 0) + extra.size > 256)) {
+        recipeFaceBudgetErrors.add(repetition); continue;
+      }
+      requestedFaceCount += faceCount;
+      for (const [key, extra] of addedFaces) wantedRecipeFaces.set(key, new Set([...(wantedRecipeFaces.get(key) ?? []), ...extra]));
       for (const ref of refs) wantedRecipeStates.set(featureContributionKey(ref), { ...ref });
     }
     const historicalBodies = new Map<string, { body: Shape3D; lineage: string }>();
@@ -1037,7 +1073,7 @@ export class CadEngine {
         for (const output of transaction.nextEntries) {
           const key = featureContributionKey(output.ref);
           if (!wantedRecipeStates.has(key) || historicalRecipeStates.has(key)) continue;
-          const record: { ref: BodyReference; lineage: string; shape?: Shape3D; error?: unknown } = {
+          const record: { ref: BodyReference; lineage: string; shape?: Shape3D; faceLease?: NativeRecipeFaceLease; error?: unknown } = {
             ref: { ...output.ref }, lineage: output.lineage,
           };
           try { capturedRecipes.set(key, record); }
@@ -1045,7 +1081,14 @@ export class CadEngine {
           // Transaction outputs are valid; preflight independently rechecks the
           // copied source before any recipe tool. Do not swallow a legacy raw
           // validator cleanup error as an ordinary capture error here.
-          try { record.shape = recipeOwners.own(copyBodyShape(output.shape)); }
+          try {
+            const keys = wantedRecipeFaces.get(key);
+            if (keys?.size) {
+              const capture = captureRecipeOwnerFaces(transaction, recipeFaceEpoch, output.ref, keys);
+              recipeOwners.ownAll([capture.shape, capture.lease]);
+              record.shape = capture.shape; record.faceLease = capture.lease;
+            } else record.shape = recipeOwners.own(copyBodyShape(output.shape));
+          }
           catch (error) {
             if (isNativeCleanupFailure(error) || recipeOwners.cleanupErrors().length) throw error;
             record.error = error; // Preserve the exact ordinary capture cause for its consumer.
@@ -1388,6 +1431,7 @@ export class CadEngine {
           if (feature.source.featureIds.some(id => !solidFeatureIds.has(id) || id === feature.id || unavailableFeatureIds.has(id))) {
             throw new Error('Una operación semilla está ausente, suprimida o no es anterior a la repetición.');
           }
+          if (recipeFaceBudgetErrors.has(feature)) throw Error('El historial de caras admite 256 referencias por cuerpo y 512 por documento.');
           if (recipeSourceBudgetErrors.has(feature)) throw new Error('El documento supera 512 estados históricos exactos requeridos para recalcular operaciones.');
           const support = feature.type === 'mirror' ? resolveSupport(feature.support) : null;
           if (feature.type === 'mirror' && !support) throw new Error('El plano de simetría no está disponible. Recupera el soporte.');
@@ -1403,11 +1447,11 @@ export class CadEngine {
             bindings: operation.bindings.map(binding => ({ source: binding.source, targets: binding.targetBodyIds })),
             referencePolicies: operation.referencePolicies, variation: operation.variation,
           };
-          const evaluation = evaluateFeatureRecipes({ features, request, catalog: bodyCatalog, historicalStates: historicalRecipeStates, sourceSketchSolves });
+          const evaluation = evaluateFeatureRecipes({ features, request, catalog: bodyCatalog, historicalStates: historicalRecipeStates, sourceSketchSolves, recipeFaceEpoch });
           let nextLineage: string;
           try {
             if (this.autoScopeDiscovery?.patternId === feature.id) {
-              this.autoScopeDiscovery.intent = createNativeRecipeAutoScopeIntent(evaluation, bodyCatalog, { features, request, sourceSketchSolves });
+              this.autoScopeDiscovery.intent = createNativeRecipeAutoScopeIntent(evaluation, bodyCatalog, { features, request, sourceSketchSolves, recipeFaceEpoch });
             }
             const proof = evaluation.attestation;
             nextLineage = advanceLineage(lineage, [feature.id, feature.type, 'owned-feature-regeneration',
@@ -1421,7 +1465,7 @@ export class CadEngine {
           // Stage consumes all evaluator candidates before returning its owned proposal.
           // The existing adoption boundary prepares every cache before one transfer.
           const transaction = stageFeatureRecipeEvaluation(evaluation, bodyCatalog,
-            { sourceFeatureId: feature.id, lineage: nextLineage }, { features, request, sourceSketchSolves });
+            { sourceFeatureId: feature.id, lineage: nextLineage }, { features, request, sourceSketchSolves, recipeFaceEpoch });
           adoptBodyTransaction(transaction);
           sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
           rememberReferencedSource(beforeForRecord);
@@ -2004,6 +2048,7 @@ export class CadEngine {
       const releases = [
         ...[...historicalDeltas.values()].map(record => () => record.delta?.dispose()),
         ...[...historicalOwnedDeltas.values()].map(record => () => record.delta?.dispose()),
+        ...[...historicalRecipeStates.values()].map(record => () => record.faceLease?.delete()),
         ...[...historicalRecipeStates.values()].map(record => () => record.shape?.delete()),
         ...[...historicalBodies.values()].map(record => () => record.body.delete()),
         ...[...historicalExactBodies.values()].map(record => () => record.shape.delete()),

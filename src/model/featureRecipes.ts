@@ -1,3 +1,4 @@
+import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 /**
  * Declaration extraction for per-instance feature recipes; no native evaluator.
  * Original project code. Features must come from the document parser; this is
@@ -475,7 +476,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       if (selectedSet.has(owner.sourceFeatureId)) {
         if (policy.placement !== 'instance' || !policy.parentTargetBodyId || !routes.get(exactStateKey(owner))?.includes(policy.parentTargetBodyId)) invalid('INTERNAL_FACE_ROUTE', featureId, path, 'A selected parent face needs an exact same-instance parent owner route.');
       } else if (policy.placement === 'instance') invalid('UNSELECTED_INSTANCE_PARENT', featureId, path, 'An unselected producer has no virtual instance output.');
-      pending('FACE_CORRESPONDENCE_PENDING', featureId, path, 'Exact role/face correspondence must be implemented and attested; proximity is not an identity fallback.');
+      if (policy.placement !== 'world' || path === 'support' || !isBodyCatalogFaceKey(support.face.key)) pending('FACE_CORRESPONDENCE_PENDING', featureId, path, 'Exact role/face correspondence must be implemented and attested; proximity is not an identity fallback.');
     } else {
       if (support.kind === 'plane') {
         if (definitions.get(support.planeId)?.feature.type !== 'plane') invalid('PLANE_PRODUCER_KIND', featureId, path, 'Plane reference must identify an exact datum declaration.');
@@ -560,8 +561,8 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       if (end.kind === 'upToSurface') {
         const policy = policyFor(feature.id, 'endCondition.target', end.target);
         node.termination = { kind: 'upToSurface', target: end.target, policy, ...(end.offset ? { offset: end.offset } : {}) };
-        if (end.target.kind !== 'principal' || policy.placement !== 'world') {
-          pending('UP_TO_SURFACE_PENDING', feature.id, 'endCondition', 'Only an explicitly fixed external principal-plane limit is currently resolved; datum/face and transformed/instance correspondence remain required.');
+        if (end.target.kind === 'plane' || policy.placement !== 'world') {
+          pending('UP_TO_SURFACE_PENDING', feature.id, 'endCondition', 'Only fixed principal planes and explicitly owned external world faces are resolved; datum and transformed/instance references remain required.');
         }
       } else if (end.kind === 'throughAll' || end.kind === 'untilNext') {
         if (end.kind === 'throughAll' && typeof end.bothDirections !== 'boolean') invalid('THROUGH_ALL_SENSE', feature.id, 'endCondition.bothDirections', 'Through-all must name one/both directions.');
@@ -584,8 +585,8 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       if (end.kind === 'upToSurface') {
         const policy = policyFor(feature.id, `${path}.target`, end.target);
         node.secondTermination = { kind: 'upToSurface', target: end.target, policy, ...(end.offset ? { offset: end.offset } : {}) };
-        if (end.target.kind !== 'principal' || policy.placement !== 'world') {
-          pending('UP_TO_SURFACE_PENDING', feature.id, path, 'Only an explicitly fixed external principal-plane limit is currently resolved; datum/face and transformed/instance correspondence remain required.');
+        if (end.target.kind === 'plane' || policy.placement !== 'world') {
+          pending('UP_TO_SURFACE_PENDING', feature.id, path, 'Only fixed principal planes and explicitly owned external world faces are resolved; datum and transformed/instance references remain required.');
         }
       } else {
         const sourceBase = feature.type === 'cut' ? feature.bodyScope?.[0]
@@ -632,7 +633,10 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
   request.referencePolicies.sort((a, b) => textOrder(locatorKey(a.featureId, a.path), locatorKey(b.featureId, b.path)));
   if (depthValues) depthValues.sort((a, b) => textOrder(a.address, b.address));
   if (sketchValues) sketchValues.sort((a, b) => textOrder(a.address, b.address) || textOrder(a.constraintId, b.constraintId));
-  const fingerprintInput = canonical({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements });
+  const worldFaceHistory = operations.some(node => [node.termination, node.secondTermination].some(end =>
+    end?.kind === 'upToSurface' && end.target.kind === 'face' && end.policy.placement === 'world'));
+  const fingerprintInput = canonical({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements,
+    ...(worldFaceHistory ? { referenceEvaluatorRevision: 'world-owner-face-history-v1' } : {}) });
   return freezeTree({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements,
     diagnostics, eligibility: diagnostics.length ? 'pending-capability' : 'initial-declaration-subset', fingerprintInput });
 }

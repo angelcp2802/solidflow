@@ -3,7 +3,7 @@ import { framePoint } from './kernel.frames';
 import { copyBodyShape, maximumNativeShapeTolerance } from './kernel.bodies';
 import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
-import type { ExtrudeFeature, PlaneFrame, ThinWallDefinition, Vec3 } from './kernel.types';
+import type { ExtrudeFeature, PlaneFrame, SurfaceOffset, ThinWallDefinition, Vec3 } from './kernel.types';
 import { prepareThinSection } from './kernel.thin-wall';
 import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
 import { buildThinWallEndCaps } from './kernel.thin-caps';
@@ -23,7 +23,7 @@ export type PrimitiveTermination =
   | { readonly kind: 'blind'; readonly symmetric: boolean }
   | { readonly kind: 'throughAll'; readonly bothDirections: boolean }
   | { readonly kind: 'untilNext' }
-  | { readonly kind: 'upToSurface'; readonly limit: ResolvedPrimitiveLimit };
+  | { readonly kind: 'upToSurface'; readonly limit: ResolvedPrimitiveLimit; readonly offset?: SurfaceOffset };
 
 export interface ExplicitFramePrimitiveInput {
   readonly profile: PrimitiveProfile;
@@ -242,7 +242,7 @@ export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput):
         ? throughAllBossTool(isolatedTarget!, center, ray, termination.bothDirections, makePrism)
         : throughAllTool(isolatedTarget!, center, ray, termination.bothDirections, makePrism)); break;
       case 'untilNext': result = owners.own(untilNextTool(isolatedTarget!, center, ray, makePrism, input.operation === 'subtract')); break;
-      case 'upToSurface': result = owners.own(upToSurfaceTool(limit!, center, ray, makePrism)); break;
+      case 'upToSurface': result = owners.own(upToSurfaceTool(limit!, center, ray, makePrism, termination.offset)); break;
       default: throw new Error('Unknown primitive termination.');
     }
     input.validateTool(result);

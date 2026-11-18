@@ -1,4 +1,7 @@
+import { isBodyCatalogFaceKey } from '../cad/kernel.semantic-references';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
+import { isAllFeaturePattern } from './featurePatterns';
+import { featureBodyOutputIds } from './bodyReferences';
 import { isInitialAdditiveAllRecipe } from './featureRecipes';
 
 export type RecipeAvailabilityScope = 'selected' | 'dynamic';
@@ -22,8 +25,17 @@ export function recipeSeedUnavailableReason(seed: Feature | undefined, features:
   if (sketch?.type !== 'sketch' || sketch.suppressed) return 'El croquis de la operación no está disponible. Recupera el croquis o quita la referencia.';
   if (sketch.support) return 'Recalcular todavía no admite croquis apoyados en caras o planos asociados. Elige otra semilla o Copiar geometría.';
   const ends = [seed.endCondition, ...(seed.secondDirection?.enabled ? [seed.secondDirection.endCondition] : [])];
-  if (ends.some(end => end?.kind === 'upToSurface' && end.target.kind !== 'principal')) {
-    return 'Recalcular Hasta superficie admite un plano principal fijo. Los límites por cara o plano asociado conservan su uso normal.';
+  for (const end of ends) {
+    if (end?.kind !== 'upToSurface' || end.target.kind === 'principal') continue;
+    if (end.target.kind === 'face' && isBodyCatalogFaceKey(end.target.face.key)) {
+      const parent = features.get(end.target.face.sourceFeatureId);
+      if (parent && !parent.suppressed) {
+        const dynamicParent = (parent.type === 'linearPattern' || parent.type === 'circularPattern' || parent.type === 'mirror')
+          && parent.featurePattern && isAllFeaturePattern(parent.featurePattern);
+        if (dynamicParent || featureBodyOutputIds(parent).length) continue;
+      }
+    }
+    return 'Recalcular Hasta superficie requiere un plano principal fijo o una cara histórica de un cuerpo explícito.';
   }
   if (scope === 'dynamic' && seed.type === 'extrude' && !isInitialAdditiveAllRecipe(seed, sketch)) {
     if (sketch.profile.kind === 'entities') return 'Este perfil de saliente sólo admite Cuerpos seleccionados al recalcular. Todos los cuerpos y Detectar cuerpos todavía no lo admiten.';
