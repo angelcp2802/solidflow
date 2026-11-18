@@ -17,6 +17,7 @@ import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation } from './kernel.f
 import { createSourceSketchSolveRegistry, type SourceSketchSupportContext } from './kernel.sketch-solves';
 import * as bodies from './kernel.bodies';
 import * as profiles from './kernel.profiles';
+import * as recipeEvaluation from './kernel.feature-recipes';
 import * as entities from './kernel.recipe-entities';
 import * as recipeBridge from './kernel.recipe-instance';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
@@ -679,4 +680,61 @@ it('keeps a later real entity tail split atomic after an earlier A change and B 
     for (const id of ['S', 'A', 'B']) expect(() => catalog(engine).resolve(output(id))).toThrow();
     expect(() => engine.export('step', saved.features)).toThrow();
   } finally { bridge.mockRestore(); }
+}), 60_000);
+
+it.each(rows.flatMap(row => [false, true].map(primitive => ({ ...row, primitive }))))('isolated transformed associated sketch in $kind (primitive=$primitive)', row => usingEngine((engine, owners) => {
+  const value = prefix(row), sketch = value.features.find(feature => feature.id === 'entity-sketch') as SketchFeature;
+  const parent: Feature = { id: 'parent-datum', type: 'plane', name: 'Original reversed z2', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 2 };
+  const child: Feature = { ...parent, id: 'child-datum', name: 'Original positive z1', support: { kind: 'plane', planeId: parent.id }, offset: 1 };
+  value.features.unshift(parent, child);
+  if (row.primitive) sketch.profile = { kind: 'circle', center: [7.5, 5], radius: .5 };
+  sketch.support = { kind: 'plane', planeId: child.id }; sketch.offset = -1; sketch.plane = 'XZ';
+  const saved = parseDocument(serializeDocument(addFeature(value, pattern(row.kind))));
+  const evaluate = recipeEvaluation.evaluateFeatureRecipes;
+  const observations: { volume: number; area: number; count: number; measured?: number; probes: number[] }[] = [];
+  const solver = vi.spyOn(profiles, 'solveEntityProfileResult');
+  // Observe the real native build just before its evaluator. The private prototype request
+  // shares the actual source solve registry, native histories and catalog. It is disposed
+  // without staging. The saved, undeclared request below must still fail normally.
+  const observe = vi.spyOn(recipeEvaluation, 'evaluateFeatureRecipes').mockImplementation(input => {
+    const policies = [parent.id, child.id, sketch.id].map(featureId => ({ featureId, path: 'support', placement: 'transform' as const }));
+    for (const [id, code] of [[parent.id, 'ASSOCIATIVE_PLANE_PENDING'], [sketch.id, 'ASSOCIATIVE_SKETCH_PENDING']]) {
+      const mixed = policies.map(policy => policy.featureId === id ? { ...policy, placement: 'world' as const } : policy);
+      const closure = extractRecipeClosure(input.features, { ...input.request, referencePolicies: mixed });
+      if (!closure.diagnostics.some(item => item.code === code && item.featureId === id)) throw Error('Mixed or world support became eligible');
+    }
+    const prototype = { ...input, request: { ...input.request, referencePolicies: policies } };
+    const proposal = evaluate(prototype);
+    try {
+      const shape = proposal.replacements[0].shape;
+      const probes = [row.cut, [21, row.min[1] + 1, 6] as Vec3].map(center => {
+        const cube = owners.own(makeBox(center.map(value => value - .1) as Vec3, center.map(value => value + .1) as Vec3));
+        const common = owners.own(bodyBoolean('common', shape, cube));
+        return owners.own(measureShapeVolumeProperties(common)).volume;
+      });
+      observations.push({ probes, volume: owners.own(measureShapeVolumeProperties(shape)).volume,
+        area: owners.own(measureShapeSurfaceProperties(shape)).area, count: solver.mock.calls.length,
+        measured: solver.mock.results.at(-1)?.value.drivenValues['measured-arc'] });
+      const stale = { ...prototype, features: prototype.features.map(item => item.id === parent.id ? { ...parent, offset: 3 } : item) };
+      expect(() => stageFeatureRecipeEvaluation(proposal, prototype.catalog, { sourceFeatureId: 'pattern', lineage: 'experimental-stale' }, stale))
+        .toThrow('changed');
+    } finally { proposal.dispose(); }
+    return evaluate(input);
+  });
+  try {
+    const result = engine.build(saved.features);
+    expect(observations, JSON.stringify(result.featureErrors)).toHaveLength(1);
+    const observation = observations[0];
+    expect(observation.count).toBe(row.primitive ? 0 : 2);
+    expect(observation.probes[0]).toBeCloseTo(0, 7); expect(observation.probes[1]).toBeCloseTo(.008, 7);
+    if (!row.primitive) expect(observation.measured).toBeCloseTo(2, 7);
+    const volume = row.primitive ? 800 - 2 * Math.PI : 672 - 16 * Math.PI;
+    const area = row.primitive ? 520 + 7.5 * Math.PI : 584 + 12 * Math.PI;
+    expect(Math.abs(observation.volume - volume)).toBeLessThan(V);
+    expect(Math.abs(observation.area - area)).toBeLessThan(V);
+    expect(result.featureErrors.map(error => error.id)).toEqual(['pattern']);
+    expect(result.featureErrors[0].message).toContain('saved remap policy');
+    metrics(engine, A, 800, 520, row.min, row.max);
+  } finally { observe.mockRestore(); solver.mockRestore(); }
 }), 60_000);

@@ -1,3 +1,4 @@
+import { samePlaneFrame } from './kernel.frames';
 import type { Shape3D } from 'replicad';
 import type { Feature, PlaneFrame, Vec3 } from './kernel.types';
 import type { IntrinsicRecipeExtrusionPlacement } from '../model/featureRecipes';
@@ -37,10 +38,7 @@ export interface EntityRecipeToolInput extends EntityRecipeProfileInput {
   readonly secondTermination?: PrimitiveTermination;
   readonly workingTarget: Shape3D;
 }
-const sameFrame = (a: PlaneFrame, b: PlaneFrame): boolean =>
-  a.origin.every((value, axis) => value === b.origin[axis]) &&
-  a.xDirection.every((value, axis) => value === b.xDirection[axis]) &&
-  a.normal.every((value, axis) => value === b.normal[axis]);
+
 
 /** Positive lengths alone permit reflected solutions about the fixed corner. */
 function sameRectangleBranch(source: EntityProfile, varied: EntityProfile): boolean {
@@ -64,9 +62,9 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
   const { source, placement } = input;
   input.assertWorkingCurrent();
   const view = readCheckpointSourceSketchSolve(source.registry, source.checkpoint, source.features, placement.sketchId);
-  if (view.input.support || view.input.profile.kind !== 'entities' || view.resolved.profile.kind !== 'entities'
-      || !sameFrame(view.frame, placement.sourceFrame)) {
-    throw new Error('Entity recipe placement requires its unchanged intrinsic source solve/frame.');
+  if (view.input.profile.kind !== 'entities' || view.resolved.profile.kind !== 'entities'
+      || !samePlaneFrame(view.frame, placement.sourceFrame)) {
+    throw new Error('Entity recipe placement requires its authenticated source solve and frame.');
   }
   const depth = placement.signedDepth, sign = Math.sign(depth), frame = placement.frame;
   if (!Number.isFinite(depth) || Math.abs(depth) < .01 || Math.abs(depth) > 100_000) throw new Error('Entity recipe depth is outside the native parameter range.');
@@ -81,6 +79,19 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
     placement.termination.kind === 'blind');
   const section = thinWall ? prepareThinSection(view.resolved, thinWall) : undefined;
   let profile = section?.sketch.profile ?? view.result.profile;
+  if (view.input.support) {
+    if (view.input.support.kind === 'face' || section || view.result.status !== 'fullyDefined' || placement.sketchDimensions) {
+      throw Error('El croquis asociado requiere cotas locales totalmente definidas en su plano.');
+    }
+    const solved = solveEntityProfileResult(structuredClone(view.input.profile));
+    input.assertWorkingCurrent();
+    readCheckpointSourceSketchSolve(source.registry, source.checkpoint, source.features, placement.sketchId);
+    if (solved.status !== 'fullyDefined' || JSON.stringify(solved.profile) !== JSON.stringify(view.result.profile) ||
+        JSON.stringify(solved.drivenValues) !== JSON.stringify(view.result.drivenValues)) {
+      throw Error('La solución de esta instancia ha cambiado de rama o de cotas locales.');
+    }
+    profile = solved.profile;
+  }
   const variation = placement.sketchDimensions;
   if (variation?.length) {
     const drivers = recipeSketchDrivingDimensions(feature, view.input);

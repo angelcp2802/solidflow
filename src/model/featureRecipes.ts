@@ -13,7 +13,7 @@ import { featureDependencyIds } from './featureInputs';
 import { isRecipeInstanceDepth, isRecipeInstanceDepthSeed, MAX_RECIPE_DEPTH_VALUES } from './featureRecipeDepthVariation';
 import { isRecipeSketchDimensionValue, recipeSketchDrivingDimensions, MAX_RECIPE_SKETCH_DIMENSIONS, MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE, type RecipeSketchDimensionVariation, type RecipeSketchDimensionValue } from './featureRecipeSketchVariation';
 import { validateSurfaceOffset } from '../cad/extrusionEndCondition';
-import { principalPlaneFrame } from '../cad/kernel.frames';
+import { offsetPlaneFrame, principalPlaneFrame } from '../cad/kernel.frames';
 import { readThinWall } from '../cad/thinWall';
 import { assertExtrusionDirectionContext, readSecondDirection } from '../cad/extrusionDirection';
 
@@ -496,17 +496,23 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
   // Resolve only replayed sketch/plane support policies. Definition-only source
   // ancestry contributes to the fingerprint, not extra geometry operations.
   const recipeSupports = new Set<string>();
+  let hasAssociatedSketch = false;
   const inspectSupport = (id: string): void => {
     if (recipeSupports.has(id)) return;
     recipeSupports.add(id);
     const feature = definitions.get(id)!.feature;
     if (feature.type === 'sketch' && feature.support) {
-      policyFor(id, 'support', feature.support);
-      pending('ASSOCIATIVE_SKETCH_PENDING', id, 'support', 'Instance support/constraint placement is separate from rigid profile placement.');
+      hasAssociatedSketch = true;
+      const policy = policyFor(id, 'support', feature.support);
+      if (policy.placement !== 'transform' || !supportedSurface(feature.support, policy)) {
+        pending('ASSOCIATIVE_SKETCH_PENDING', id, 'support', 'The sketch requires an exact transformed datum chain.');
+      }
       if (feature.support.kind === 'plane') inspectSupport(feature.support.planeId);
     } else if (feature.type === 'plane') {
-      policyFor(id, 'support', feature.support);
-      pending('ASSOCIATIVE_PLANE_PENDING', id, 'support', 'Dependent datum evaluation requires its instance reference policy.');
+      const policy = policyFor(id, 'support', feature.support);
+      if (policy.placement !== 'transform' || !supportedSurface(feature.support, policy)) {
+        pending('ASSOCIATIVE_PLANE_PENDING', id, 'support', 'Each ancestor requires the same transformed reference policy.');
+      }
       if (feature.support.kind === 'plane') inspectSupport(feature.support.planeId);
     }
   };
@@ -551,11 +557,14 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       pending('ALL_POSITIVE_SCOPE_PENDING', feature.id, 'bodyOperation', 'Additive ALL currently requires an intrinsic rectangle/circle Blind merge without support, thin wall or second direction; other positive scopes remain required.');
     }
     inspectSupport(sketch.id);
+    if (sketch.support && (request.variation.kind !== 'none' || request.scope.mode !== 'selected' || Object.hasOwn(feature, 'thinWall'))) {
+      pending('ASSOCIATIVE_SKETCH_PENDING', sketch.id, 'support', 'Associated profile placement currently requires fixed local dimensions on a selected solid section.');
+    }
     if (!sketch.profile || typeof sketch.profile !== 'object') invalid('PROFILE_DECLARATION', sketch.id, 'profile', 'Expected a parsed profile declaration.');
     if (sketch.profile.kind === 'entities') {
       // Declaration eligibility is not native authority. The evaluator must
       // obtain a current build-issued source solve before any native clone.
-      if (sketch.support || request.variation.kind !== 'none' && !sketchValues && !eligibleDepthSeed) pending('SOLVED_PROFILE_PENDING', sketch.id, 'profile', 'Associative or varying entity profiles need their instance solve contract.');
+      if (request.variation.kind !== 'none' && !sketchValues && !eligibleDepthSeed) pending('SOLVED_PROFILE_PENDING', sketch.id, 'profile', 'Associative or varying entity profiles need their instance solve contract.');
     }
     else if (sketch.profile.kind !== 'rectangle' && sketch.profile.kind !== 'circle') invalid('PROFILE_DECLARATION', sketch.id, 'profile', 'Unknown profile declaration.');
     if (!Number.isFinite(feature.depth) || Math.abs(feature.depth) < .01 || Math.abs(feature.depth) > 100_000 || typeof feature.symmetric !== 'boolean') invalid('EXTRUSION_PARAMETERS', feature.id, 'depth', 'Expected finite signed depth and an explicit symmetric flag.');
@@ -645,6 +654,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     end?.kind === 'upToSurface' && (end.target.kind === 'plane' || end.policy.placement === 'transform')));
   const fingerprintInput = canonical({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements,
     ...(worldFaceHistory ? { referenceEvaluatorRevision: 'world-owner-face-history-v1' } : {}),
+    ...(hasAssociatedSketch ? { sketchPlacementRevision: 'transformed-associated-chart-v1' } : {}),
     ...(placedPlane ? { planeEvaluatorRevision: 'principal-datum-placement-v1' } : {}) });
   return freezeTree({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements,
     diagnostics, eligibility: diagnostics.length ? 'pending-capability' : 'initial-declaration-subset', fingerprintInput });
@@ -825,7 +835,7 @@ export function intrinsicProfileInstancePlacement(closure: RecipeClosure, featur
   const feature = closure.definitions.find(definition => definition.feature.id === featureId)?.feature;
   if (!node?.termination || !feature || (feature.type !== 'extrude' && feature.type !== 'cut')) invalid('OPERATION_RECIPE_PENDING', featureId, 'type', 'Expected an eligible extracted extrusion operation.');
   const sketch = closure.definitions.find(definition => definition.feature.id === feature.sketchId)?.feature;
-  if (!sketch || sketch.type !== 'sketch' || sketch.support) invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'Intrinsic unchanged local sketch coordinates are required; associative/varying solves remain pending.');
+  if (!sketch || sketch.type !== 'sketch') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'The source operation requires its exact sketch declaration.');
   if (!Number.isFinite(sketch.offset) || !['XY', 'XZ', 'YZ'].includes(sketch.plane)) invalid('FIXED_PROFILE_INPUT', sketch.id, 'plane', 'Intrinsic source plane and offset must be valid.');
   let depth = feature.depth;
   if (closure.request.variation.kind !== 'none' && closure.request.variation.kind !== 'sketchDimensions') {
@@ -838,7 +848,16 @@ export function intrinsicProfileInstancePlacement(closure: RecipeClosure, featur
       invalid('VARIATION_DEPTH', featureId, 'variation.values', 'The instance depth must remain in bounds and follow the original seed direction.');
     }
   }
-  const sourceFrame = principalPlaneFrame(sketch.plane, sketch.offset);
+  let sourceFrame = principalPlaneFrame(sketch.plane, sketch.offset);
+  if (sketch.support) {
+    if (sketch.support.kind === 'face') invalid('ASSOCIATIVE_SKETCH_PENDING', sketch.id, 'support', 'Face-based sketch needs its own native occurrence.');
+    const byId = new Map(closure.definitions.map(definition => [definition.feature.id, definition.feature]));
+    const chain = principalRecipeDatumChain(sketch.support.planeId, id => byId.get(id));
+    if (!chain || chain[0].support.kind !== 'principal') invalid('ASSOCIATIVE_SKETCH_PENDING', sketch.id, 'support', 'Expected a principal-rooted datum.');
+    let basis = principalPlaneFrame(chain[0].support.plane);
+    for (const datum of chain) basis = offsetPlaneFrame(basis, datum.offset, datum.reversed);
+    sourceFrame = offsetPlaneFrame(basis, sketch.offset);
+  }
   const mapped = transformedExtrusionFrame(sourceFrame, depth, transform);
   const termination = node.termination.kind === 'blind' ? { ...node.termination, signedDepth: mapped.signedDepth } : node.termination;
   const thinWall = readThinWall(feature);

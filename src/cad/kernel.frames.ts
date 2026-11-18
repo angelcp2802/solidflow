@@ -11,6 +11,11 @@ function unit(vector: Vec3): Vec3 {
   return scale(vector, 1 / length);
 }
 
+export const samePlaneFrame = (a: PlaneFrame, b: PlaneFrame): boolean =>
+  a.origin.every((value, axis) => value === b.origin[axis]) &&
+  a.xDirection.every((value, axis) => value === b.xDirection[axis]) &&
+  a.normal.every((value, axis) => value === b.normal[axis]);
+
 export function clonePlaneFrame(frame: PlaneFrame): PlaneFrame {
   return { origin: [...frame.origin], xDirection: [...frame.xDirection], normal: [...frame.normal] };
 }

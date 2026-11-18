@@ -6,7 +6,7 @@ import type { NativeRecipeSourceState } from './kernel.feature-recipes';
 import { readHistoricalRecipeFace } from './kernel.recipe-face-history';
 import { withNativeOwners } from './kernel.native-ownership';
 import { buildExplicitFramePrimitive, resolveExplicitFrameDirections, resolveExplicitFrameUntilNext, type PrimitiveTermination } from './kernel.recipe-primitives';
-import { offsetLimitFrame, principalPlaneFrame } from './kernel.frames';
+import { offsetLimitFrame, offsetPlaneFrame, principalPlaneFrame, samePlaneFrame } from './kernel.frames';
 import { buildEntityRecipeTool, resolveEntityRecipeDirections, resolveEntityRecipeUntilNext, type EntityRecipeSolveInput } from './kernel.recipe-entities';
 import type { DirectionToolResolution } from './kernel.direction-tools';
 import type { UntilNextCutResolution } from './kernel.until-next-resolution';
@@ -36,6 +36,12 @@ export interface OwnedRecipeInstanceTool {
 export type RecipeInstanceUntilNextResolution = UntilNextCutResolution & { readonly operation: 'add' | 'subtract' };
 export type RecipeInstanceDirectionsResolution = DirectionToolResolution & { readonly operation: 'add' | 'subtract' };
 
+function historicalDatumFrame(input: RecipeInstanceToolInput, id: string) {
+  const history = input.datumHistory, proof = history?.datums.get(id);
+  if (!history || !proof) throw Error('El plano no pertenece al historial de la receta.');
+  return readRecipeDatum(history.registry, proof, history.features, id);
+}
+
 function nativeTermination(end: RecipeTermination, input: RecipeInstanceToolInput): PrimitiveTermination {
   if (end.kind === 'blind') return { kind: 'blind', symmetric: end.symmetric };
   if (end.kind === 'throughAll') return { kind: 'throughAll', bothDirections: end.bothDirections };
@@ -43,11 +49,7 @@ function nativeTermination(end: RecipeTermination, input: RecipeInstanceToolInpu
   if (end.target.kind !== 'face' && end.policy.placement !== 'instance') {
     let frame;
     if (end.target.kind === 'principal') frame = principalPlaneFrame(end.target.plane);
-    else {
-      const history = input.datumHistory, proof = history?.datums.get(end.target.planeId);
-      if (!history || !proof) throw Error('El plano límite no pertenece al historial de la receta.');
-      frame = readRecipeDatum(history.registry, proof, history.features, end.target.planeId);
-    }
+    else frame = historicalDatumFrame(input, end.target.planeId);
     if (end.policy.placement === 'transform') {
       const transform = input.closure.request.plan.transforms.find(item => item.key === input.address);
       if (!transform) throw Error('La instancia del plano límite no está activa.');
@@ -102,6 +104,10 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
   if (closure.request.scope.mode !== 'selected' && operation === 'add') {
     if (!input.assertWorkingCurrent) throw Error('Additive ALL requires its evaluator current working-owner guard.');
     input.assertWorkingCurrent();
+  }
+  if (sketch?.type === 'sketch' && sketch.support?.kind === 'plane') {
+    const frame = offsetPlaneFrame(historicalDatumFrame(input, sketch.support.planeId), sketch.offset);
+    if (!samePlaneFrame(frame, resolved.sourceFrame)) throw Error('El plano asociado del croquis ha cambiado.');
   }
   const termination = nativeTermination(end, input);
   const secondTermination = resolved.secondTermination ? nativeTermination(resolved.secondTermination, input) : undefined;
