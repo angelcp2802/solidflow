@@ -60,7 +60,7 @@ describe('saved external principal-plane recipe intent', () => {
 
   it.each([
     { kind: 'unsupported path', policies: [{ featureId: current.sourceFeatureId, path: 'support', placement: 'world' }] },
-    { kind: 'unsupported placement', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'transform' }] },
+    { kind: 'unsupported instance placement', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'instance' }] },
     { kind: 'unselected source', policies: [{ featureId: 'not-a-selected-seed', path: 'endCondition.target', placement: 'world' }] },
     { kind: 'unknown field', policies: [{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world', body: baseRef }] },
     { kind: 'duplicate source', policies: Array.from({ length: 2 }, () => ({ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'world' })) },
@@ -119,12 +119,13 @@ describe('saved external principal-plane recipe intent', () => {
     expect(() => extractRecipeClosure(changed, request(feature))).toThrow(/stale hidden policies/)
   })
 
-  it('keeps transformed principal-plane resolution pending in the internal declaration API', () => {
-    const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true), input = request(feature)
-    input.referencePolicies[0].placement = 'transform'
-    const closure = extractRecipeClosure(prefix, input)
-    expect(closure.diagnostics.some(item => item.code === 'UP_TO_SURFACE_PENDING')).toBe(true)
-    expect(() => requireInitialRecipeDeclaration(closure)).toThrow()
+  it('retains the explicit transformed principal-plane placement after save and extraction', () => {
+    const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true, 'endCondition.target', undefined, 'transform')
+    const reopened = parseDocument(serializeDocument(document([...prefix, feature])))
+    const saved = reopened.features.at(-1) as RepetitionFeature
+    expect(request(saved).referencePolicies).toEqual([{ featureId: current.sourceFeatureId, path: 'endCondition.target', placement: 'transform' }])
+    const closure = requireInitialRecipeDeclaration(extractRecipeClosure(reopened.features, request(saved)))
+    expect(closure.operations[0].termination).toMatchObject({ kind: 'upToSurface', policy: { placement: 'transform' } })
   })
 
   it('rejects a stale healthy command receipt after changing the saved limit choice', () => {
