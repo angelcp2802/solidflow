@@ -399,3 +399,54 @@ it.each(placements.slice(1))('translates the placed datum in literal world XYZ a
   probe(engine, output(), [0, 0, endZ + .5], false);
   probe(engine, output(), [0, 0, endZ - .5], true);
 }));
+
+it('repairs an ordinary child face limit after an edit moves its blind pocket floor', () => fixture(engine => {
+  // Original millimetre fixture: 12 x 12 x 8 stock, open 10 x 10 pocket from below,
+  // 1 x 1 child from above. The stock edges leave a 1 mm rim around the pocket.
+  const stock = { bodyId: 'stock', sourceFeatureId: 'base' };
+  const pocket = { ...stock, sourceFeatureId: 'pocket' }, child = { ...stock, sourceFeatureId: 'child' };
+  const min: Vec3 = [-1, -1, 0], max: Vec3 = [11, 11, 8];
+  const base = document([...box('base', stock.bodyId, min, max),
+    { id: 'pocket-profile', type: 'sketch', name: 'Perfil de cajera', suppressed: false,
+      plane: 'XY', offset: 0, profile: { kind: 'rectangle', center: [5, 5], width: 10, height: 10 } },
+    { id: pocket.sourceFeatureId, type: 'cut', name: 'Cajera inferior', suppressed: false,
+      sketchId: 'pocket-profile', depth: 4, symmetric: false, bodyScope: [stock] }]);
+  function selectedFloor(result: CadResult, height: number) {
+    const faces = result.bodies!.find(body => body.ref.bodyId === stock.bodyId)!.faces.filter(face =>
+      face.frame && face.frame.normal[2] < -.99999 && Math.abs(face.frame.origin[2] - height) < 1e-6);
+    expect(faces).toHaveLength(1);
+    return faces[0].ref;
+  }
+  const firstFloor = selectedFloor(healthy(engine, base), 4);
+  const initial = document([...base.features,
+    { id: 'child-profile', type: 'sketch', name: 'Perfil superior', suppressed: false,
+      plane: 'XY', offset: 8, profile: { kind: 'rectangle', center: [4.5, 4.5], width: 1, height: 1 } },
+    { id: child.sourceFeatureId, type: 'cut', name: 'Paso superior', suppressed: false,
+      sketchId: 'child-profile', depth: -1, symmetric: false, bodyScope: [pocket],
+      endCondition: { kind: 'upToSurface', target: { kind: 'face', face: firstFloor } } }]);
+  healthy(engine, parseDocument(serializeDocument(initial)));
+  metrics(engine, child, 748, 846, min, max);
+  const edited = updateFeature(initial, 'pocket', { depth: 5 });
+  const stale = engine.build(parseDocument(serializeDocument(edited)).features);
+  expect(stale.featureErrors.map(error => error.id)).toEqual(['child']);
+  expect(stale.featureErrors[0].message).toContain('Cajera inferior');
+  metrics(engine, pocket, 652, 872, min, max);
+  const nextFloor = selectedFloor(stale, 5);
+  expect(nextFloor.sourceFeatureId).toBe(firstFloor.sourceFeatureId);
+  expect(nextFloor.key).not.toBe(firstFloor.key);
+  const second = document(edited.features.map(feature => {
+    if (feature.id !== 'child' || feature.type !== 'cut') return feature;
+    const { endCondition, ...rest } = feature;
+    return { ...rest, depth: 1, secondDirection: { enabled: true, depth: 1, endCondition } };
+  }));
+  const secondFailure = engine.build(second.features);
+  expect(secondFailure.featureErrors.map(error => error.id)).toEqual(['child']);
+  expect(secondFailure.featureErrors[0].message).toContain('dirección 2');
+  expect(secondFailure.featureErrors[0].message).toContain('Cajera inferior');
+
+  const repaired = updateFeature(edited, 'child', { endCondition: { kind: 'upToSurface', target: { kind: 'face', face: nextFloor } } });
+  healthy(engine, parseDocument(serializeDocument(repaired)));
+  metrics(engine, child, 649, 882, min, max);
+  probe(engine, child, [4.5, 4.5, 6], false);
+  probe(engine, child, [6.5, 4.5, 6], true);
+}), 60_000);

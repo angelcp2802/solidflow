@@ -353,6 +353,18 @@ function emptyResult(): CadResult {
   };
 }
 
+function extrusionLimitFace(catalog: FaceCatalog | SemanticFaceCatalog, ref: FaceReference, features: readonly Feature[], direction: number): Face {
+  try {
+    return ('semanticStatus' in catalog ? resolveSemanticSelectedFaces(catalog, [ref], ref.sourceFeatureId)
+      : resolveSelectedFaces(catalog, [ref], ref.sourceFeatureId))[0];
+  } catch (error) {
+    if (!(error instanceof Error) || isNativeCleanupFailure(error)) throw error;
+    const producer = features.find(feature => feature.id === ref.sourceFeatureId);
+    const source = producer ? ` de «${producer.name}»` : '';
+    throw new Error(`${error.message} Edita «Hasta superficie» en la dirección ${direction} y vuelve a seleccionar la cara${source}.`, { cause: error });
+  }
+}
+
 /** Retains both legacy aggregate picks and exact body-scoped picks at this historical step. */
 function historicalBodyFaceCatalog(body: Shape3D, sourceFeatureId: string, lineage: string, bodies: NativeBodyCatalog): FaceCatalog {
   const catalogs: FaceCatalog[] = [];
@@ -1785,8 +1797,7 @@ export class CadEngine {
                 if (end.target.kind === 'face') {
                   const id = end.target.face.sourceFeatureId, catalog = historicalLimitFaces.get(id);
                   if (!solidFeatureIds.has(id) || unavailableFeatureIds.has(id) || !catalog) throw Error('La cara límite de una dirección no está disponible. Recupera su referencia.');
-                  const face = ('semanticStatus' in catalog ? resolveSemanticSelectedFaces(catalog, [end.target.face], id)
-                    : resolveSelectedFaces(catalog, [end.target.face], id))[0];
+                  const face = extrusionLimitFace(catalog, end.target.face, features, index + 1);
                   surface = { face }; limitIdentities[index] = ['upToSurface', 'face', id, end.target.face.key, historicalFaces.get(id)!.lineage];
                 } else {
                   const support = resolveSupport(end.target);
@@ -1911,8 +1922,7 @@ export class CadEngine {
               }
               const catalog=historicalLimitFaces.get(id);
               if(!catalog) throw new Error('No se encuentra la superficie límite histórica. Recupera la selección.');
-              const face=('semanticStatus' in catalog ? resolveSemanticSelectedFaces(catalog,[end.target.face],id)
-                : resolveSelectedFaces(catalog,[end.target.face],id))[0];
+              const face=extrusionLimitFace(catalog, end.target.face, features, 1);
               tool=upToSurfaceTool({face},frame.origin,direction,makePrism,end.offset);
               limitLineage=['upToSurface','face',id,end.target.face.key,historicalFaces.get(id)!.lineage];
             } else {
