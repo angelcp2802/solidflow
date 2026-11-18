@@ -285,6 +285,17 @@ The final result is one solid with area 848 mm² and bounds [−10, −6, 0] to
 [10, 6, 9] mm. This analytical example does not establish arbitrary sequence
 or topology-reference coverage.
 
+### Edit two pocket depths with one plane
+
+Open [Placa con dos rebajes encadenados](../examples/Placa%20con%20dos%20rebajes%20encadenados.solidflow)
+using **Archivo → Abrir**. The upper pocket ends at **Plano del escalón**.
+The lower pocket starts on the same plane and cuts a further 3 mm.
+
+Double-click **Plano del escalón** in the tree, change **Distancia del plano**
+from 8 to 6 mm and accept. Both floors move down by 2 mm. Their final heights
+are 6 and 3 mm above the base, and the volume changes from 10,992 to
+10,128 mm³. Undo restores the original heights of 8 and 5 mm.
+
 ## Fresh sketches on current faces
 
 The separate `npm run test:desktop:part-fresh-sketch` workflow starts with only

@@ -1734,6 +1734,11 @@ radial constraints. See [validation](VALIDATION.md) for executed evidence.
 
 ## Sequential part original
 
+`examples/Placa con dos rebajes encadenados.solidflow` is original
+GPL-3.0-only project geometry drawn from three concentric XY rectangles.
+A 36 × 30 × 12 mm plate has a 24 × 18 mm pocket from its top to a datum
+at Z = 8 mm. A 10 × 8 mm pocket extends 3 mm below the datum.
+
 `src/cad/fixtures/part-sequence-original.json` and
 `src/examples/part-sequence.ts` are original GPL-3.0-only project geometry:
 one 20 × 12 × 4 mm base at the origin, two disjoint 2 × 2 mm cuts centered at
